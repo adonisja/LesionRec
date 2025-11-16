@@ -46,8 +46,16 @@ ENV/
 !/data/raw/*.dvc
 !/data/processed/*.dvc
 
-# Keep samples tracked by Git LFS
-!/data/samples/
+# Image files (all tracked by DVC, including samples)
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.tiff
+*.tif
+*.webp
+*.svg
 
 # Models (tracked by DVC)
 /models/*.h5
@@ -66,10 +74,16 @@ mlruns/
 
 # DVC
 /dvc.lock
+.dvc/config.local
+.dvc/tmp/
+.dvc_storage/
 
 # Environment variables
 .env
 .env.local
+.env.*
+*_credentials.json
+*_secret.json
 
 # Testing
 .coverage
@@ -80,3 +94,19 @@ htmlcov/
 *.tmp
 *.bak
 .cache/
+
+# API Keys & Secrets (additional patterns)
+*apikey*
+*api_key*
+*api-key*
+*.pem
+*.key
+*.p12
+*.pfx
+gdrive-user-credentials.json
+
+# Large media files
+*.mp4
+*.avi
+*.mov
+*.mkv
