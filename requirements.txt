@@ -12,7 +12,8 @@ tensorflow>=2.12.0  # or use PyTorch only
 opencv-python>=4.5.0
 Pillow>=9.0.0
 albumentations>=1.3.0
-ultralytics>=8.0.0  # YOLOv8 for acne detection
+ultralytics>=8.0.0  # YOLOv8/v10 for acne detection
+git+https://github.com/THU-MIG/yolov10.git  # YOLOv10 (latest)
 
 # Acne Detection - Roboflow Models
 roboflow>=1.1.0  # For ensemble detector (acnedet-v1, skin_disease_ak, skn-1)
