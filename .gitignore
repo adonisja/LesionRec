@@ -1,113 +1,61 @@
+# Environment Variables
+.env
+.env.local
+.env.*.local
+*.env
+*credentials.json
+*.pem
+*.key
+
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual environments
+.venv/
 venv/
-env/
 ENV/
-.venv
-.env
+env/
+
+# Node/Frontend
+node_modules/
+dist/
+build/
+.npm
+.eslintcache
 
 # IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
+
+# OS
 .DS_Store
+Thumbs.db
 
-# Jupyter Notebook
-.ipynb_checkpoints
-*.ipynb
-
-# Data (tracked by DVC)
-/data/raw/*
-/data/processed/*
-!/data/raw/.gitkeep
-!/data/processed/.gitkeep
-!/data/raw/*.dvc
-!/data/processed/*.dvc
-
-# Image files (all tracked by DVC, including samples)
-*.jpg
-*.jpeg
-*.png
-*.gif
-*.bmp
-*.tiff
-*.tif
-*.webp
-*.svg
-
-# Models (tracked by DVC)
-/models/*.h5
-/models/*.pkl
-/models/*.pth
-/models/*.pt
-/models/*.onnx
-!/models/.gitkeep
-
-# Logs and outputs
-/logs/
+# Logs
+logs/
 *.log
-/outputs/
-wandb/
-mlruns/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Data
+data/raw/
+data/processed/
+!data/.gitkeep
+backend/data/raw/
+backend/data/processed/
+backend/data/samples/
+backend/data/yolo_dataset/
+**/yolo_dataset/
 
 # DVC
-/dvc.lock
-.dvc/config.local
-.dvc/tmp/
+.dvc/cache
+.dvc/tmp
 .dvc_storage/
 
-# Environment variables
-.env
-.env.local
-.env.*
-*_credentials.json
-*_secret.json
-
-# Testing
-.coverage
-.pytest_cache/
-htmlcov/
-
-# Temporary files
-*.tmp
-*.bak
-.cache/
-
-# API Keys & Secrets (additional patterns)
-*apikey*
-*api_key*
-*api-key*
-*.pem
-*.key
-*.p12
-*.pfx
-gdrive-user-credentials.json
-
-# Large media files
-*.mp4
-*.avi
-*.mov
-*.mkv
+# Build
+dist/
+build/
+*.egg-info/
