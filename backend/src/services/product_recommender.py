@@ -42,7 +42,8 @@ class ProductRecommender:
         condition: str,
         budget_max: float = None,
         categories: List[str] = None,
-        prioritize_rating: bool = True
+        prioritize_rating: bool = True,
+        keywords: List[str] = None
     ):
         """
         Create a product bundle for a specific condition.
@@ -52,6 +53,7 @@ class ProductRecommender:
             - budget_max: Maximum budget to filter price (default: None)
             - categories: List of product categories to filter
             - prioritize_rating: Weight rating higher than price (default: True)
+            - keywords: List of keywords to filter products (optional)
 
         Returns:
             Dict with bundle products, total cost and savings
@@ -67,6 +69,19 @@ class ProductRecommender:
         if df.empty:
             return {f"error": "No products found for condition: {condition}", "bundle": []}
         
+        # Filter by keywords if provided
+        if keywords:
+            import re
+            # Create a regex pattern for case-insensitive matching of ANY keyword
+            escaped_keywords = [re.escape(k) for k in keywords]
+            pattern = '|'.join(escaped_keywords)
+            df = df[df['title'].str.contains(pattern, case=False, na=False)]
+            
+            if df.empty:
+                 # If keywords filter everything out, return empty or maybe fallback? 
+                 # For now, return empty to respect the filter.
+                 return {f"error": f"No products found matching keywords: {keywords}", "bundle": []}
+
         # Categorize products by keywords in title
         df = self._categorize_products(df)
 
@@ -119,8 +134,12 @@ class ProductRecommender:
             
 
             # Select the best value product
-            best_product_idx = affordable['value_score'].idxmax()
-            best_product = affordable.loc[best_product_idx].to_dict()
+            # OLD: best_product_idx = affordable['value_score'].idxmax()
+            # NEW: Randomize among top 3 value scores to add variety
+            top_candidates = affordable.nlargest(3, 'value_score')
+            
+            # Randomly sample 1 from the top candidates
+            best_product = top_candidates.sample(n=1).iloc[0].to_dict()
 
 
             bundle.append({
@@ -183,7 +202,8 @@ class ProductRecommender:
         condition: str,
         severity: str = 'moderate',
         budget_max: float = None,
-        top_n: int = 5
+        top_n: int = 5,
+        keywords: List[str] = None
     ) -> List[Dict[str, Any]]:
         """
         This function will get product recommendations for a specific condition
@@ -194,6 +214,7 @@ class ProductRecommender:
             - severity: Skin condition severity (expected: "mild"/"moderate"/"severe")
             - budget_max: Maximum budget to filter price
             - top_n: Number of products to return
+            - keywords: List of keywords to filter products (optional)
 
         Returns:
             List of recommended products
@@ -212,38 +233,38 @@ class ProductRecommender:
         if budget_max is not None:
             df = df[df['price_numeric'] <= budget_max]
 
+        # Apply keyword filter
+        if keywords:
+            import re
+            # Create a regex pattern for case-insensitive matching of ANY keyword
+            escaped_keywords = [re.escape(k) for k in keywords]
+            pattern = '|'.join(escaped_keywords)
+            df = df[df['title'].str.contains(pattern, case=False, na=False)]
+
         # Sort by rating (primary) and reviews (secondary)
         df = df.sort_values(['rating','reviews'], ascending=[False, False])
 
-        # Get top N products
-        top_products = df.head(top_n)
+        # Randomization Logic:
+        # Instead of just taking the top N, we take a larger pool (e.g. top 3*N)
+        # and randomly sample from them. This ensures quality (high ratings)
+        # but provides variety ("freshness") on subsequent calls.
+        
+        candidate_pool_size = top_n * 3
+        candidates = df.head(candidate_pool_size)
+        
+        if candidates.empty:
+            return []
+
+        # Randomly sample from the top candidates
+        # We use min() to handle cases where we have fewer candidates than top_n
+        recommendations_df = candidates.sample(n=min(top_n, len(candidates)))
 
         # Convert to list of dicts
-        recommendations = top_products.to_dict('records')
+        recommendations = recommendations_df.to_dict('records')
 
         return recommendations
 
-    def recommend_from_analysis(
-        self,
-        gemini_analysis: str,
-        budget_max: float = None,
-        top_n: int = 5
-    ) -> List[Dict[str, Any]]:
-        """
-        Extracts condition and severity from Gemini analysis and recommends products.
-
-        Args:
-        gemini_analysis: Text from Gemini API
-        budget_max: Maximum budget to filter price
-        top_n: Number of products to return
-
-        Returns:
-        List of recommended products
-        """
-        condition, severity = self.extract_condition_and_severity(gemini_analysis)
-        return self.recommend_for_condition(condition, severity, budget_max, top_n)
-
-    def extract_condition_and_severity(self, gemini_analysis: str) -> Tuple[Optional[str], Optional[str]]:
+    def extract_conditions_and_severities(self, gemini_analysis: str) -> Dict[str, str]:
         """
         Extracts condition and severity from Gemini JSON analysis.
 
@@ -253,20 +274,12 @@ class ProductRecommender:
             gemini_analysis: JSON string from Gemini API
 
         Returns:
-            Tuple of (condition, severity) or (None, None) if not found
+            Dict of {condition: severity} or empty dict if not found
         """
         try:
             # Parse JSON response
             analysis_data = json.loads(gemini_analysis)
-
-            # Extract severity directly from JSON (already normalized)
-            severity = analysis_data.get('severity', '').lower()
-            if severity not in ['mild', 'moderate', 'severe']:
-                logger.warning(f"Invalid severity '{severity}', defaulting to moderate")
-                severity = 'moderate'
-
-            # Extract characterization and search for condition
-            characterization = analysis_data.get('characterization', '').lower()
+            detected_conditions = {}
 
             condition_keywords = {
                 'acne': ['acne', 'pimple', 'blemish', 'breakout', 'comedone', 'whitehead', 'blackhead', 'papule', 'pustule'],
@@ -278,30 +291,56 @@ class ProductRecommender:
                 'melasma': ['melasma', 'brown patches', 'chloasma']
             }
 
-            # Search characterization for condition keywords
-            detected_condition = None
-            for condition, keywords in condition_keywords.items():
-                if any(keyword in characterization for keyword in keywords):
-                    detected_condition = condition
-                    logger.info(f"Detected condition: {condition} (severity: {severity})")
-                    break
+            # 1. Try New Schema (List of conditions)
+            if 'detected_conditions' in analysis_data and isinstance(analysis_data['detected_conditions'], list):
+                for item in analysis_data['detected_conditions']:
+                    raw_condition = item.get('condition', '').lower()
+                    severity = item.get('severity', 'moderate').lower()
+                    
+                    # Map raw condition string to our internal keys
+                    for key, keywords in condition_keywords.items():
+                        if any(kw in raw_condition for kw in keywords):
+                            detected_conditions[key] = severity
+                            logger.info(f"Detected condition (structured): {key} ({severity})")
+                            break
+            
+            # 2. Fallback/Legacy Schema (Global severity + Characterization text)
+            if not detected_conditions:
+                # Extract severity directly from JSON (already normalized)
+                severity = analysis_data.get('severity', '').lower()
+                if severity not in ['mild', 'moderate', 'severe']:
+                    # logger.warning(f"Invalid severity '{severity}', defaulting to moderate")
+                    severity = 'moderate'
 
-            if not detected_condition:
-                logger.warning(f"No condition detected in: {characterization[:100]}")
-                return None, None
+                # Extract characterization and search for condition
+                characterization = analysis_data.get('characterization', '').lower()
 
-            return detected_condition, severity
+                # Search characterization for condition keywords
+                for condition, keywords in condition_keywords.items():
+                    if any(keyword in characterization for keyword in keywords):
+                        detected_conditions[condition] = severity
+                        logger.info(f"Detected condition: {condition} (severity: {severity})")
+
+            if not detected_conditions:
+                # logger.warning(f"No condition detected in: {characterization[:100]}")
+                return {}
+
+            return detected_conditions
 
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse Gemini JSON response: {e}")
             logger.error(f"Raw response: {gemini_analysis[:200]}")
 
             # Fallback: try keyword search on raw text (old method)
-            return self._extract_condition_from_text_fallback(gemini_analysis)
+            # Note: Fallback still returns tuple, we wrap it in dict
+            cond, sev = self._extract_condition_from_text_fallback(gemini_analysis)
+            if cond:
+                return {cond: sev}
+            return {}
 
         except Exception as e:
             logger.error(f"Unexpected error extracting condition: {e}")
-            return None, None
+            return {}
 
     def _extract_condition_from_text_fallback(self, text: str) -> Tuple[Optional[str], str]:
         """
@@ -346,13 +385,67 @@ class ProductRecommender:
             logger.info(f"Fallback detected: {detected_condition} ({detected_severity})")
 
         return detected_condition, detected_severity
+    
+    def get_combined_products(self, conditions: List[str], budget_max: float = None) -> pd.DataFrame:
+        """
+        Function to gather available products for the list of conditions 
+        extracted from the gemini analysis
+        
+        @params:
+            - self,
+            - conditions: A list of strings containing the user skin conditions
+        """
+        dfs = []
+        for condition in conditions:
+            if condition in self.products:
+                dfs.append(self.products[condition])
+
+        if not dfs:
+            return pd.DataFrame()
+        
+        # 1. Concatenate all matching dataframes
+        combined_df = pd.concat(dfs, ignore_index=True)
+
+        # 2. Deduplicate by ASIN (prevents adding the same product twice)
+        combined_df = combined_df.drop_duplicates(subset='asin')
+
+        # 3. Apply Budget Filter
+        if budget_max:
+            combined_df = combined_df[combined_df['price_numeric'] <= budget_max]
+
+        return combined_df
+
+    def get_randomized_top_n(self, df: pd.DataFrame, sort_col: str, n: int = 5, pool_size: int = 15) -> List[Dict[str, Any]]:
+        """
+        This Function offers a Freshness factor to the returned list of products by using stratified sampling.
+        Instead of taking just the top 5 products, we'll grab the top tier of 15 products and randomly sample
+        that tier.
+        1. Sort by metric (Rating, Price, Reviews, etc)
+        2. We'll take the top 15 Products within that metric
+        3. Randomly pick 5 from those 15
+        """
+        if df.empty:
+            return []
+        
+        # Sort the list
+        ascending = True if sort_col == 'price_numeric' else False
+        sorted_df = df.sort_values(sort_col, ascending=ascending)
+
+        # Pool the list
+        candidate_pool = sorted_df.head(pool_size)
+
+        # Randomly sample from the top candidates (*Use min to handle edge case where pool < n)
+        sample_size = min(n, len(candidate_pool))
+        return candidate_pool.sample(n=sample_size).to_dict('records')
+
 
     def create_product_bundle_from_analysis(
         self,
         gemini_analysis: str,
         budget_max: float = None,
         categories: List[str] = None,
-        prioritize_rating: bool = True
+        prioritize_rating: bool = True,
+        keywords: List[str] = None
     ) -> Dict[str, Any]:
         """
         Create a product bundle based on Gemini analysis results.
@@ -362,13 +455,14 @@ class ProductRecommender:
             budget_max: Maximum budget for the bundle (None = Infinite)
             categories: List of product categories (default: cleanser, treatment, moisturizer)
             prioritize_rating: Weight rating higher than price
+            keywords: List of keywords to filter products
 
         Returns:
             Dict with bundle products, individual recommendations, and metadata
         """
-        condition, severity = self.extract_condition_and_severity(gemini_analysis)
+        conditions_dict = self.extract_conditions_and_severities(gemini_analysis)
 
-        if condition is None:
+        if not conditions_dict:
             return {
                 "error": "Could not detect skin condition from analysis",
                 "bundle": [],
@@ -376,26 +470,67 @@ class ProductRecommender:
                 "total_cost": 0
             }
 
+        # Primary condition for the bundle (e.g. the first one found)
+        primary_condition = list(conditions_dict.keys())[0]
+
         # 1. Get the Bundle (Sum <= Budget)
         bundle_result = self.create_product_bundle(
-            condition=condition,
+            condition=primary_condition,
             budget_max=budget_max,
             categories=categories,
-            prioritize_rating=prioritize_rating
+            prioritize_rating=prioritize_rating,
+            keywords=keywords
         )
         
-        # 2. Get Individual Recommendations (Item Price <= Budget)
-        # If budget_max is None, it returns everything (top N).
-        # If budget_max is set, it filters items > budget_max.
-        individual_recommendations = self.recommend_for_condition(
-            condition=condition,
-            severity=severity,
-            budget_max=budget_max,
-            top_n=10 # Get more items for the list
-        )
+        # 2. Combined Catalog (based on ALL conditions)
+        combined_df = self.get_combined_products(list(conditions_dict.keys()), budget_max)
         
-        # Merge results
-        bundle_result['recommendations'] = individual_recommendations
+        # 3. Shelves
+        return {
+            "bundle": bundle_result['bundle'],
+            "total_cost": bundle_result['total_cost'],
+            "recommendations": self.get_randomized_top_n(combined_df, 'rating', n=5),
+            "top_rated": self.get_randomized_top_n(combined_df, 'rating', n=5),
+            "best_value": self.get_randomized_top_n(combined_df, 'price_numeric', n=5),
+            "full_catalog": combined_df.sample(frac=1).to_dict('records')
+        }
+    
+    def recommend_from_analysis(
+        self,
+        gemini_analysis: str,
+        budget_max: float = None,
+        top_n: int = 5,
+        keywords: List[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Extracts condition and severity from Gemini analysis and recommends products.
+
+        Args:
+        gemini_analysis: Text from Gemini API
+        budget_max: Maximum budget to filter price
+        top_n: Number of products to return
+        keywords: List of keywords to filter products
+
+        Returns:
+        Dict with catalog and shelves
+        """
+        conditions_dict = self.extract_conditions_and_severities(gemini_analysis)
         
-        return bundle_result
+        if not conditions_dict:
+            return {
+                "error": "Could not detect skin condition from analysis",
+                "full_catalog": [],
+                "top_rated": [],
+                "best_value": []
+            }
+
+        # Combined Catalog (based on ALL conditions)
+        combined_df = self.get_combined_products(list(conditions_dict.keys()), budget_max)
+        
+        # Shelves
+        return {
+            "top_rated": self.get_randomized_top_n(combined_df, 'rating', n=top_n),
+            "best_value": self.get_randomized_top_n(combined_df, 'price_numeric', n=top_n),
+            "full_catalog": combined_df.sample(frac=1).to_dict('records') if not combined_df.empty else []
+        }
 

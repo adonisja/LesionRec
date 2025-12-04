@@ -293,10 +293,11 @@ export const ImageUpload = ({ userId, onAnalysisComplete }: ImageUploadProps) =>
 
         // Use the shared file selection logic
         handleFileSelection(capturedImage);
-
-        // Reset to file upload mode
-        setCapturedImage(null);
-        setCaptureMode('file');
+        
+        // Automatically trigger upload
+        // We need to set selectedFile first, but state updates are async
+        // So we call a modified upload function directly with the file
+        uploadFile(capturedImage);
     };
 
     // Handle file selection from file input
@@ -306,17 +307,13 @@ export const ImageUpload = ({ userId, onAnalysisComplete }: ImageUploadProps) =>
         }
     }
 
-    const handleUpload = async () => {
-        if (!selectedFile) {
-            alert("Please select a file first.");
-            return;
-        }
-
+    const uploadFile = async (file: File) => {
         setUploadStatus('Uploading...');
+        setIsLoadingCamera(true); // Re-use this state to disable buttons
 
         // 1. Create FormData object to send file
         const formData = new FormData();
-        formData.append('file', selectedFile);
+        formData.append('file', file);
         formData.append('user_id', userId);
         // Removed budget_max to default to None (Infinite)
         formData.append('bundle_mode', 'true');
@@ -339,6 +336,16 @@ export const ImageUpload = ({ userId, onAnalysisComplete }: ImageUploadProps) =>
         } catch (error) {
             console.error('Error uploading file:', error);
             setUploadStatus('Network error ⚠️');
+        } finally {
+            setIsLoadingCamera(false);
+        }
+    };
+
+    const handleUpload = () => {
+        if (selectedFile) {
+            uploadFile(selectedFile);
+        } else {
+            alert("Please select a file first.");
         }
     };
 
@@ -357,85 +364,95 @@ export const ImageUpload = ({ userId, onAnalysisComplete }: ImageUploadProps) =>
 
             {/* Mode: Camera */}
             { captureMode === 'camera' && (
-                <div className="flex flex-col items-center w-full">
-                    <p className="text-sm text-gray-600 mb-2">Camera Mode Active - Stream should appear below</p>
-                    <div className="relative w-full border-4 border-blue-500" style={{ minHeight: '300px', backgroundColor: '#1a1a1a' }}>
+                <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+                    <div className="relative w-full max-w-md h-[75vh] bg-black rounded-2xl overflow-hidden shadow-2xl border border-gray-800 flex flex-col">
                         <video
                             ref={setVideoRef}
                             autoPlay
-                            playsInline         // Critical for mobile devices to prevent fullscreen (esp iOS)
-                            muted              // Mute to allow autoplay without user interaction
+                            playsInline
+                            muted
                             style={{
-                                transform: 'scaleX(-1)',  // Mirror effect (selfie mode)
+                                transform: 'scaleX(-1)',
                                 width: '100%',
-                                height: 'auto',
-                                minHeight: '300px',
-                                display: 'block',
-                                objectFit: 'contain'
+                                height: '100%',
+                                objectFit: 'cover'
                             }}
-                            className="rounded-md"
-                                onLoadedMetadata={(e) => {
-                                    const video = e.currentTarget;
-                                    console.log(`📹 Video metadata loaded: ${video.videoWidth}x${video.videoHeight}`);
-                                    console.log(`   readyState: ${video.readyState}`);
-                                }}
-                                onLoadedData={(e) => {
-                                    const video = e.currentTarget;
-                                    console.log(`📹 Video loadeddata event: ${video.videoWidth}x${video.videoHeight}`);
-                                    console.log(`   readyState: ${video.readyState}`);
-                                }}
-                                onCanPlay={(e) => {
-                                    const video = e.currentTarget;
-                                    console.log(`📹 Video canplay event: ${video.videoWidth}x${video.videoHeight}`);
-                                    console.log(`   readyState: ${video.readyState}`);
-                                }}
-                                onPlay={(e) => {
-                                    console.log(`📹 Video play event fired`);
-                                }}
-                                onError={(e) => {
-                                    console.error('📹 Video error event:', e);
-                                }}
-                            />
-                        </div>
-                        <div className="mt-4 flex space-x-4">
-                            <button
-                                onClick={capturePhoto}
-                                disabled={!isVideoReady}
-                                className={`py-2 px-4 rounded-md text-white font-medium transition-colors ${
-                                    !isVideoReady
-                                    ? 'bg-gray-400 cursor-not-allowed'
-                                    : 'bg-blue-600 hover:bg-blue-700'
-                                }`}
-                            >
-                                {isVideoReady ? 'Capture Photo' : 'Loading camera...'}
-                            </button>
+                            className="absolute inset-0"
+                            onLoadedMetadata={(e) => {
+                                const video = e.currentTarget;
+                                console.log(`📹 Video metadata loaded: ${video.videoWidth}x${video.videoHeight}`);
+                            }}
+                        />
+                        
+                        {/* Camera Controls Overlay */}
+                        <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 to-transparent flex justify-center items-center gap-8 pb-8">
                             <button
                                 onClick={() => {
                                     stopCamera();
                                     setCaptureMode('file');
                                 }}
-                                className="py-2 px-4 rounded-md text-gray-700 font-medium bg-gray-200 hover:bg-gray-300"
+                                className="p-4 rounded-full bg-gray-800/50 text-white backdrop-blur-sm hover:bg-gray-700/50 transition-all"
                             >
-                                Cancel
+                                ✕
                             </button>
+                            
+                            <button
+                                onClick={capturePhoto}
+                                disabled={!isVideoReady}
+                                className={`w-20 h-20 rounded-full border-4 border-white flex items-center justify-center transition-all transform active:scale-95 ${
+                                    !isVideoReady ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/20'
+                                }`}
+                            >
+                                <div className="w-16 h-16 bg-white rounded-full"></div>
+                            </button>
+                            
+                            <div className="w-12"></div> {/* Spacer for balance */}
                         </div>
                     </div>
-                )}
+                </div>
+            )}
 
-                {/* Mode: Preview Captured Image */}
-                { captureMode === 'preview' && capturedImage && (
-                    <div className="flex flex-col items-center">
+            {/* Mode: Preview Captured Image */}
+            { captureMode === 'preview' && capturedImage && (
+                <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+                    <div className="relative w-full max-w-md h-[75vh] bg-black rounded-2xl overflow-hidden shadow-2xl border border-gray-800 flex flex-col">
                         <img
                             src={previewUrl || ''}
                             alt="Captured photo"
-                            className="w-full h-auto rounded-md border"
+                            className="w-full h-full object-contain"
                         />
-                        <div className="mt-4 flex space-x-4">
-                            <button onClick={handleRetake}>Retake</button>
-                            <button onClick={handleUploadCaptured}>Upload & Analyze</button>
+                        
+                        {/* Preview Controls Overlay */}
+                        <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex justify-between items-end">
+                            <button 
+                                onClick={handleRetake}
+                                className="px-6 py-3 rounded-full bg-gray-800/80 text-white font-medium backdrop-blur-sm hover:bg-gray-700 transition-all border border-gray-600"
+                            >
+                                ↺ Retake
+                            </button>
+                            
+                            <button 
+                                onClick={handleUploadCaptured}
+                                disabled={isLoadingCamera}
+                                className={`px-6 py-3 rounded-full text-white font-bold shadow-lg transition-all transform flex items-center gap-2 ${
+                                    isLoadingCamera 
+                                    ? 'bg-gray-500 cursor-wait' 
+                                    : 'bg-blue-600 hover:bg-blue-500 hover:scale-105'
+                                }`}
+                            >
+                                {isLoadingCamera ? (
+                                    <>
+                                        <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                                        Processing...
+                                    </>
+                                ) : (
+                                    <>Analyze →</>
+                                )}
+                            </button>
                         </div>
                     </div>
-                )}
+                </div>
+            )}
 
             {/* Mode: Initial File Upload Options */}
             { captureMode === 'file' && (

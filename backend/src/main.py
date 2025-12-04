@@ -1,3 +1,16 @@
+# ---- COMPATIBILITY PATCH ----
+# Fix for 'importlib.metadata' has no attribute 'packages_distributions' on Python < 3.10
+import sys
+if sys.version_info < (3, 10):
+    try:
+        import importlib.metadata
+        import importlib_metadata
+        if not hasattr(importlib.metadata, "packages_distributions"):
+            importlib.metadata.packages_distributions = importlib_metadata.packages_distributions
+    except ImportError:
+        pass # If importlib_metadata is not installed, we can't fix it.
+# -----------------------------
+
 # ---- IMPORTS ----------
 # Standard Python Libraries
 import os                       # To read environment variables
@@ -10,8 +23,10 @@ import time                     # For performance tracking
 # Third-Party Libraries
 from dotenv import load_dotenv      # To load environment variables from a .env file
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form  # FastAPI for API (Web Framework)
+from fastapi.concurrency import run_in_threadpool # For non-blocking sync calls
 from fastapi.middleware.cors import CORSMiddleware      # For security rules for browser requests
 from pydantic import BaseModel      # For request body validation
+from typing import Optional, List   # For type hints
 import boto3                        # AWS SDK (For S3 and Auth)
 
 # Our Local Modules
@@ -19,6 +34,7 @@ from src.services.privacy import scrub_image_metadata
 from src.services.analysis import perform_ensemble_analysis
 from src.services.product_recommender import ProductRecommender
 from src.services.image_processor import ImageProcessor
+from src.services.chatbot import SkinHealthChatbot
 
 # ---- Configuration -------
 # Set up the logger. "INFO" just means show me everything important
@@ -43,6 +59,14 @@ try:
 except Exception as e:
     logger.error(f"Failed to initialize ProductRecommender: {e}")
     recommender = None
+
+# Initialize Chatbot with error handling
+try:
+    chatbot = SkinHealthChatbot()
+    logger.info("✓ SkinHealthChatbot initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize SkinHealthChatbot: {e}")
+    chatbot = None
 
 # ---- Security (CORS) ----
 # **Browsers block requests from different ports 5173 and 8000 by default**
@@ -81,8 +105,6 @@ async def health_check():
     }
 
 from typing import Optional
-
-# ...existing code...
 
 @app.post("/upload")
 async def upload_image(
@@ -169,7 +191,7 @@ async def upload_image(
             ExpiresIn=3600  # URL expires in 1 hour
         )
         logger.info(f"✓ Upload successful. Presigned URL generated.")
-
+        
         # Step 6: Get product recommendations
         if recommender is None:
             logger.warning("ProductRecommender not available")
@@ -180,18 +202,21 @@ async def upload_image(
             }
         elif bundle_mode:
             logger.info("Creating product bundle...")
-            recommendations = recommender.create_product_bundle_from_analysis(
+            recommendations = await run_in_threadpool(
+                recommender.create_product_bundle_from_analysis,
                 gemini_analysis=analysis_result['analysis'],
                 budget_max=budget_max
             )
         else:
             logger.info("Getting individual product recommendations...")
-            recommendations = recommender.recommend_from_analysis(
+            recommendations = await run_in_threadpool(
+                recommender.recommend_from_analysis,
                 gemini_analysis=analysis_result['analysis'],
                 budget_max=budget_max,
                 top_n=5
             )
 
+        # Step 7: Return combined result
         # Step 7: Return combined result
         total_time = time.time() - request_start
         logger.info(f"✓ Request completed in {total_time:.2f}s")
@@ -199,6 +224,7 @@ async def upload_image(
         return {
             "message": "Upload and analysis successful",
             "s3_path": s3_url,
+            "s3_key": file_key,  # <--- Added this line
             "filename": file.filename,
             "ai_analysis": analysis_result,
             "product_recommendations": recommendations,
@@ -263,7 +289,8 @@ async def get_recommendations(request: RecommendationRequest):
         
     try:
         logger.info(f"Generating bundle for budget: {request.budget_max}")
-        recommendations = recommender.create_product_bundle_from_analysis(
+        recommendations = await run_in_threadpool(
+            recommender.create_product_bundle_from_analysis,
             gemini_analysis=request.analysis_text,
             budget_max=request.budget_max
         )
@@ -271,3 +298,75 @@ async def get_recommendations(request: RecommendationRequest):
     except Exception as e:
         logger.error(f"Recommendation error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+class ChatMessage(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
+class ChatRequest(BaseModel):
+    user_id: str
+    message: str
+    conversation_history: Optional[List[ChatMessage]] = None
+
+@app.post("/api/chat")
+async def chat(request: ChatRequest):
+    """
+    Chat endpoint for skin health Q&A
+    
+    Args:
+        user_id: User identifier
+        message: User's message/question
+        conversation_history: Optional conversation history for context
+    
+    Returns:
+        Response from the AI chatbot
+    """
+    if not chatbot:
+        raise HTTPException(status_code=503, detail="Chatbot service unavailable")
+    
+    try:
+        logger.info(f"Chat request from user {request.user_id}: {request.message[:100]}...")
+        
+        # Convert ChatMessage objects to dict format for chatbot
+        history = None
+        if request.conversation_history:
+            history = [
+                {"role": msg.role, "content": msg.content}
+                for msg in request.conversation_history
+            ]
+            
+        # Get response from chatbot
+        response = await run_in_threadpool(chatbot.chat, request.message, history)
+        
+        logger.info("Chat response generated successfully")
+        return {
+            "response": response,
+            "user_id": request.user_id
+        }
+    except Exception as e:
+        logger.error(f"Chat error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+class ImageUrlRequest(BaseModel):
+    s3_key: str
+
+@app.post("/api/image-url")
+async def get_presigned_url(request: ImageUrlRequest):
+    """
+    Generate a fresh presigned URL for a specific S3 key.
+    This allows the frontend to refresh expired image links without re-uploading.
+    """
+    if not s3_client:
+        raise HTTPException(status_code=503, detail="Storage service unavailable")
+
+    try:
+        url = s3_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': BUCKET_NAME, 'Key': request.s3_key},
+            ExpiresIn=3600
+        )
+        return {"url": url}
+    except Exception as e:
+        logger.error(f"Failed to generate URL: {e}")
+        raise HTTPException(status_code=500, detail="Could not generate image URL")
+
