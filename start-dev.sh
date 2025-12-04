@@ -102,6 +102,8 @@ mkdir -p logs
 echo -e "${BLUE}🔧 Starting Backend Server (FastAPI on port 8000)...${NC}"
 source .venv/bin/activate
 cd backend
+# Fix for Google Cloud gRPC DNS issues on macOS
+export GRPC_DNS_RESOLVER=native
 uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload > ../logs/backend.log 2>&1 &
 BACKEND_PID=$!
 cd ..
