@@ -57,16 +57,16 @@ export const ProductRoutine = ({ products }: Props) => {
     });
 
     return (
-        <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 shadow-sm">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 shadow-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {sortedProducts.map((product, index) => (
-                    <div key={index} className="bg-white border border-blue-100 rounded-lg p-4 shadow-sm hover:shadow-md transition-all flex flex-col relative overflow-hidden">
+                    <div key={index} className="bg-white border border-blue-100 rounded-lg p-3 shadow-sm hover:shadow-md transition-all flex flex-col relative overflow-hidden">
                         {/* Step Badge */}
-                        <div className="absolute top-0 left-0 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-br-lg z-10">
+                        <div className="absolute top-0 left-0 bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded-br-lg z-10">
                             Step {index + 1}: {getStep(product)}
                         </div>
 
-                        <div className="h-40 flex items-center justify-center mb-4 mt-6 bg-gray-50 rounded-md overflow-hidden">
+                        <div className="h-32 flex items-center justify-center mb-3 mt-5 bg-gray-50 rounded-md overflow-hidden">
                             {product.thumbnail ? (
                                 <img src={product.thumbnail} alt={product.name} className="max-h-full max-w-full object-contain" />
                             ) : (

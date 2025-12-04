@@ -56,7 +56,12 @@ def _run_gemini_sync(image_bytes: bytes, mime_type: str) -> str:
             Return the result ONLY as a valid JSON object matching this exact schema:
             {
                 "characterization": "string description of the type of lesions/skin conditions observed",
-                "severity": "Mild" | "Moderate" | "Severe",
+                "detected_conditions": [
+                    {
+                        "condition": "string name of condition (e.g. Acne, Rosacea, Hyperpigmentation)",
+                        "severity": "Mild" | "Moderate" | "Severe"
+                    }
+                ],
                 "location": "string description of where the condition appears on the face/body",
                 "recommendation": "string with general skincare advice including medical disclaimer",
                 "treatments": ["array", "of", "recommended", "active", "ingredients"],

@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
-import { getCurrentUser, signOut } from 'aws-amplify/auth';
+import { getCurrentUser, signOut, fetchUserAttributes } from 'aws-amplify/auth';
 import { ImageUpload } from './components/ImageUpload';
 import { AnalysisResults } from './components/AnalysisResults';
 import { RecommendedProducts } from './components/RecommendedProducts';
 import { Auth } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
+import { UserProfile } from './components/UserProfile';
 import { Chatbot } from './components/Chatbot';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import type { AnalysisResponse } from './types';
 
-type ViewState = 'dashboard' | 'upload' | 'results' | 'products' | 'chat' | 'analysis';
-type TabState = 'dashboard' | 'analysis' | 'chat';
+type ViewState = 'dashboard' | 'upload' | 'results' | 'products' | 'chat' | 'analysis' | 'profile';
+type TabState = 'dashboard' | 'analysis' | 'chat' | 'profile';
 
 function App() {
   const [user, setUser] = useState<any>(null);
@@ -36,7 +38,8 @@ function App() {
   async function checkUser() {
     try {
       const currentUser = await getCurrentUser();
-      setUser(currentUser);
+      const userAttributes = await fetchUserAttributes();
+      setUser({ ...currentUser, ...userAttributes });
     } catch (err) {
       setUser(null);
     } finally {
@@ -62,28 +65,59 @@ function App() {
     setCurrentView('results');
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Auth onLoginSuccess={checkUser} />; 
+  }
+
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header with user info and sign out */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-blue-600">Lumina</h1>
+      <div className="bg-white shadow-md border-b border-gray-200 relative z-20">
+        <div className="max-w-7xl mx-auto px-6 py-4 grid grid-cols-3 items-center">
+          <div></div> {/* Spacer for centering */}
+          
+          <div className="flex justify-center">
+            <h1 className="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-teal-500">
+              Lumina
+            </h1>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              onClick={() => {
+                setActiveTab('profile');
+                setCurrentView('profile');
+              }}
+              className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center text-lg font-bold hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg border-4 border-blue-50"
+              title="User Profile"
+            >
+              {user?.given_name?.[0]?.toUpperCase() || user?.username?.[0]?.toUpperCase() || 'U'}
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Tab Navigation */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex gap-8">
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-3">
+          <div className="flex justify-center gap-4 flex-wrap">
               <button
                 onClick={() => {
                   setActiveTab('dashboard');
                   setCurrentView('dashboard');
                 }}
-                className={`py-4 px-2 font-medium border-b-2 transition-colors ${
+                className={`px-6 py-2.5 rounded-full font-medium transition-all duration-200 transform active:scale-95 ${
                   activeTab === 'dashboard'
-                    ? 'text-blue-600 border-blue-600'
-                    : 'text-gray-600 border-transparent hover:text-gray-900'
+                    ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-200'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
                 }`}
               >
                 📊 Dashboard
@@ -93,10 +127,10 @@ function App() {
                   setActiveTab('analysis');
                   setCurrentView('upload');
                 }}
-                className={`py-4 px-2 font-medium border-b-2 transition-colors ${
+                className={`px-6 py-2.5 rounded-full font-medium transition-all duration-200 transform active:scale-95 ${
                   activeTab === 'analysis'
-                    ? 'text-blue-600 border-blue-600'
-                    : 'text-gray-600 border-transparent hover:text-gray-900'
+                    ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-200'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
                 }`}
               >
                 🔍 Analysis
@@ -106,10 +140,10 @@ function App() {
                   setActiveTab('chat');
                   setCurrentView('chat');
                 }}
-                className={`py-4 px-2 font-medium border-b-2 transition-colors ${
+                className={`px-6 py-2.5 rounded-full font-medium transition-all duration-200 transform active:scale-95 ${
                   activeTab === 'chat'
-                    ? 'text-blue-600 border-blue-600'
-                    : 'text-gray-600 border-transparent hover:text-gray-900'
+                    ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-200'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
                 }`}
               >
                 🤖 AI Assistant
@@ -129,6 +163,10 @@ function App() {
                 setCurrentView('upload');
               }}
               onViewProducts={() => setCurrentView('products')}
+              onViewResults={() => {
+                setActiveTab('analysis');
+                setCurrentView('results');
+              }}
               analysisData={analysisData}
             />
           </div>
@@ -136,18 +174,29 @@ function App() {
 
         {/* Analysis Tab */}
         {activeTab === 'analysis' && (currentView === 'upload' || currentView === 'results') && (
-          <div className="max-w-md mx-auto px-6">
+          <div className={currentView === 'results' ? "w-full" : "max-w-md mx-auto px-6"}>
             {currentView === 'upload' && (
               <>
-                <button 
-                  onClick={() => {
-                    setActiveTab('dashboard');
-                    setCurrentView('dashboard');
-                  }}
-                  className="mb-4 text-gray-500 hover:text-gray-700 flex items-center"
-                >
-                  ← Back to Dashboard
-                </button>
+                <div className="flex justify-between items-center mb-6">
+                  <button 
+                    onClick={() => {
+                      setActiveTab('dashboard');
+                      setCurrentView('dashboard');
+                    }}
+                    className="text-gray-500 hover:text-gray-700 flex items-center font-medium"
+                  >
+                    ← Dashboard
+                  </button>
+
+                  {analysisData && (
+                    <button 
+                      onClick={() => setCurrentView('results')}
+                      className="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-100 transition-colors font-medium text-sm flex items-center gap-2"
+                    >
+                      📄 View Last Result
+                    </button>
+                  )}
+                </div>
                 <ImageUpload 
                   userId={user.userId} 
                   onAnalysisComplete={handleAnalysisComplete} 
@@ -155,14 +204,16 @@ function App() {
               </>
             )}
             {currentView === 'results' && analysisData && (
-              <AnalysisResults 
-                data={analysisData} 
-                onBack={() => {
-                  setActiveTab('dashboard');
-                  setCurrentView('dashboard');
-                }} 
-                onViewProducts={() => setCurrentView('products')}
-              />
+              <ErrorBoundary>
+                <AnalysisResults 
+                  data={analysisData} 
+                  onBack={() => {
+                    setActiveTab('dashboard');
+                    setCurrentView('dashboard');
+                  }} 
+                  onViewProducts={() => setCurrentView('products')}
+                />
+              </ErrorBoundary>
             )}
           </div>
         )}
@@ -180,6 +231,11 @@ function App() {
         {/* Chat Tab */}
         {activeTab === 'chat' && currentView === 'chat' && (
           <Chatbot userId={user.userId} />
+        )}
+
+        {/* Profile Tab */}
+        {activeTab === 'profile' && currentView === 'profile' && (
+          <UserProfile user={user} onSignOut={handleSignOut} />
         )}
       </div>
     </div>

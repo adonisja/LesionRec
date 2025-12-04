@@ -18,10 +18,11 @@ interface DashboardStats {
 interface Props {
     onStartAnalysis: () => void;
     onViewProducts: () => void;
+    onViewResults: () => void;
     analysisData: any;
 }
 
-export const Dashboard: React.FC<Props> = ({ onStartAnalysis, onViewProducts, analysisData }) => {
+export const Dashboard: React.FC<Props> = ({ onStartAnalysis, onViewProducts, onViewResults, analysisData }) => {
     const [stats, setStats] = useState<DashboardStats>({
         currentStreak: 0,
         longestStreak: 0,
@@ -289,21 +290,32 @@ export const Dashboard: React.FC<Props> = ({ onStartAnalysis, onViewProducts, an
             </div>
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className={`grid grid-cols-1 ${analysisData ? 'md:grid-cols-3' : 'md:grid-cols-1 max-w-md mx-auto'} gap-6`}>
                 <button
                     onClick={onStartAnalysis}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 rounded-xl text-lg font-semibold shadow-lg transition-all transform hover:scale-105"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-8 rounded-xl text-lg font-semibold shadow-lg transition-all transform hover:scale-105 flex flex-col items-center justify-center gap-3"
                 >
-                    🔍 Start New Analysis
+                    <span className="text-3xl">🔍</span>
+                    <span>Start New Analysis</span>
                 </button>
 
                 {analysisData && (
-                    <button
-                        onClick={onViewProducts}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-6 rounded-xl text-lg font-semibold shadow-lg transition-all transform hover:scale-105"
-                    >
-                        🛍️ View Recommended Products
-                    </button>
+                    <>
+                        <button
+                            onClick={onViewResults}
+                            className="bg-white border-2 border-blue-100 hover:border-blue-300 text-blue-700 px-4 py-8 rounded-xl text-lg font-semibold shadow-lg transition-all transform hover:scale-105 flex flex-col items-center justify-center gap-3"
+                        >
+                            <span className="text-3xl">📄</span>
+                            <span>View Last Results</span>
+                        </button>
+                        <button
+                            onClick={onViewProducts}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-8 rounded-xl text-lg font-semibold shadow-lg transition-all transform hover:scale-105 flex flex-col items-center justify-center gap-3"
+                        >
+                            <span className="text-3xl">🛍️</span>
+                            <span>View Products</span>
+                        </button>
+                    </>
                 )}
             </div>
 

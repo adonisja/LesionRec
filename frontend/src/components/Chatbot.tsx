@@ -102,32 +102,47 @@ export const Chatbot: React.FC<Props> = ({ userId }) => {
             </div>
 
             {/* Messages Container */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 {messages.map((message) => (
                     <div
                         key={message.id}
-                        className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                        className={`flex items-end ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
+                        {message.type === 'bot' && (
+                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-2 flex-shrink-0 border border-blue-200">
+                                <span role="img" aria-label="robot" className="text-sm">🤖</span>
+                            </div>
+                        )}
+
                         <div
-                            className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg ${
+                            className={`max-w-[80%] md:max-w-[70%] px-4 py-3 rounded-2xl shadow-sm ${
                                 message.type === 'user'
                                     ? 'bg-blue-600 text-white rounded-br-none'
-                                    : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none shadow-sm'
+                                    : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none'
                             }`}
                         >
                             <p className="text-sm leading-relaxed">{message.content}</p>
-                            <span className={`text-xs mt-2 block ${
-                                message.type === 'user' ? 'text-blue-100' : 'text-gray-500'
+                            <span className={`text-xs mt-1 block ${
+                                message.type === 'user' ? 'text-blue-100' : 'text-gray-400'
                             }`}>
                                 {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                         </div>
+
+                        {message.type === 'user' && (
+                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center ml-2 flex-shrink-0 border border-gray-300">
+                                <span role="img" aria-label="user" className="text-sm">👤</span>
+                            </div>
+                        )}
                     </div>
                 ))}
                 
                 {loading && (
-                    <div className="flex justify-start">
-                        <div className="bg-white text-gray-800 border border-gray-200 px-4 py-3 rounded-lg rounded-bl-none shadow-sm">
+                    <div className="flex items-end justify-start">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-2 flex-shrink-0 border border-blue-200">
+                            <span role="img" aria-label="robot" className="text-sm">🤖</span>
+                        </div>
+                        <div className="bg-white text-gray-800 border border-gray-200 px-4 py-3 rounded-2xl rounded-bl-none shadow-sm">
                             <div className="flex space-x-2">
                                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
                                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>

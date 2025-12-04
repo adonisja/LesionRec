@@ -11,7 +11,11 @@ export const RecommendedProducts = ({ data, onBack }: Props) => {
     const [budget, setBudget] = useState<string>('');
     const [currentBundle, setCurrentBundle] = useState(data.product_recommendations.bundle || []);
     const [allRecommendations, setAllRecommendations] = useState(data.product_recommendations.recommendations || []);
+    const [fullCatalog, setFullCatalog] = useState(data.product_recommendations.full_catalog || []);
+    const [sortBy, setSortBy] = useState<'default' | 'price_asc' | 'price_desc' | 'rating' | 'reviews'>('default');
     const [isUpdating, setIsUpdating] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 8;
     const [bundleStats, setBundleStats] = useState({
         totalCost: data.product_recommendations.total_cost || 0,
         savings: 0
@@ -45,6 +49,7 @@ export const RecommendedProducts = ({ data, onBack }: Props) => {
                 const result = await response.json();
                 setCurrentBundle(result.bundle);
                 setAllRecommendations(result.recommendations || []);
+                setFullCatalog(result.full_catalog || []);
                 setBundleStats({
                     totalCost: result.total_cost,
                     savings: 0
@@ -59,6 +64,41 @@ export const RecommendedProducts = ({ data, onBack }: Props) => {
             setIsUpdating(false);
         }
     };
+
+    const getSortedProducts = (products: any[], sort: string) => {
+        if (sort === 'default') return products;
+        
+        return [...products].sort((a, b) => {
+            switch (sort) {
+                case 'price_asc':
+                    return (a.price_numeric || 0) - (b.price_numeric || 0);
+                case 'price_desc':
+                    return (b.price_numeric || 0) - (a.price_numeric || 0);
+                case 'rating':
+                    return (b.rating || 0) - (a.rating || 0);
+                case 'reviews':
+                    return (b.reviews || 0) - (a.reviews || 0);
+                default:
+                    return 0;
+            }
+        });
+    };
+
+    const getSectionTitle = () => {
+        switch (sortBy) {
+            case 'price_asc': return 'Best Value Picks';
+            case 'price_desc': return 'Premium Picks';
+            case 'rating': return 'Top Rated Picks';
+            case 'reviews': return 'Most Popular Picks';
+            default: return 'Top Picks';
+        }
+    };
+
+    // Derived state for display
+    const displayedCatalog = getSortedProducts(fullCatalog, sortBy);
+    const displayedTopPicks = sortBy === 'default' 
+        ? allRecommendations 
+        : displayedCatalog.slice(0, 5); // When sorted, show top 5 from the sorted full catalog
 
     return (
         <div className="max-w-6xl mx-auto p-6 bg-white rounded-xl shadow-lg">
@@ -122,7 +162,7 @@ export const RecommendedProducts = ({ data, onBack }: Props) => {
             )}
             
             {currentBundle.length > 0 ? (
-                <div className="max-w-4xl mx-auto mb-12">
+                <div className="max-w-3xl mx-auto mb-8">
                     <ProductRoutine products={currentBundle} />
                 </div>
             ) : (
@@ -132,47 +172,103 @@ export const RecommendedProducts = ({ data, onBack }: Props) => {
             )}
 
             {/* Individual Recommendations Section */}
-            {allRecommendations.length > 0 && (
-                <div className="border-t pt-10">
-                    <h3 className="text-2xl font-bold text-gray-900 mb-6">Individual Recommendations</h3>
+            {displayedTopPicks.length > 0 && (
+                <div className="border-t pt-10 mb-12">
+                    <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                        <h3 className="text-2xl font-bold text-gray-900">{getSectionTitle()}</h3>
+                        <div className="flex items-center gap-3">
+                            <label className="text-sm font-medium text-gray-700">Sort by:</label>
+                            <select 
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value as any)}
+                                className="block w-48 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border"
+                            >
+                                <option value="default">Default (Recommended)</option>
+                                <option value="price_asc">Price: Low to High</option>
+                                <option value="price_desc">Price: High to Low</option>
+                                <option value="rating">Highest Rated</option>
+                                <option value="reviews">Most Reviewed</option>
+                            </select>
+                        </div>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {allRecommendations.map((product: any, idx: number) => (
-                            <div key={idx} className="border rounded-lg p-4 hover:shadow-md transition-shadow bg-white flex flex-col">
-                                <div className="h-48 flex items-center justify-center mb-4 bg-gray-50 rounded-md overflow-hidden">
-                                    {product.thumbnail ? (
-                                        <img src={product.thumbnail} alt={product.title} className="max-h-full max-w-full object-contain" />
-                                    ) : (
-                                        <div className="text-gray-400">No Image</div>
-                                    )}
-                                </div>
-                                <div className="flex-grow">
-                                    <div className="text-xs font-bold text-blue-600 uppercase mb-1">{product.category || 'Product'}</div>
-                                    <h4 className="text-sm font-medium text-gray-900 line-clamp-2 mb-2" title={product.title}>
-                                        {product.title}
-                                    </h4>
-                                    <div className="flex items-center mb-2">
-                                        <span className="text-yellow-400 mr-1">★</span>
-                                        <span className="text-sm text-gray-600">{product.rating} ({product.reviews})</span>
-                                    </div>
-                                </div>
-                                <div className="mt-4 flex items-center justify-between">
-                                    <span className="text-lg font-bold text-gray-900">
-                                        ${typeof product.price_numeric === 'number' ? product.price_numeric.toFixed(2) : product.price}
-                                    </span>
-                                    <a 
-                                        href={product.link} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded hover:bg-gray-800"
-                                    >
-                                        View on Amazon
-                                    </a>
-                                </div>
-                            </div>
+                        {displayedTopPicks.map((product: any, idx: number) => (
+                            <ProductCard key={idx} product={product} />
                         ))}
                     </div>
+                </div>
+            )}
+
+            {/* Full Catalog Section */}
+            {displayedCatalog.length > 0 && (
+                <div className="border-t pt-10">
+                    <h3 className="text-2xl font-bold text-gray-900 mb-6">All Matching Products</h3>
+                    <p className="text-gray-500 mb-6">Complete catalog of products matching your skin analysis.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {displayedCatalog.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map((product: any, idx: number) => (
+                            <ProductCard key={`catalog-${idx}`} product={product} />
+                        ))}
+                    </div>
+
+                    {/* Pagination Controls */}
+                    {displayedCatalog.length > ITEMS_PER_PAGE && (
+                        <div className="flex justify-center items-center mt-8 gap-4">
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                Previous
+                            </button>
+                            <span className="text-sm text-gray-600 font-medium">
+                                Page {currentPage} of {Math.ceil(displayedCatalog.length / ITEMS_PER_PAGE)}
+                            </span>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(Math.ceil(displayedCatalog.length / ITEMS_PER_PAGE), p + 1))}
+                                disabled={currentPage >= Math.ceil(displayedCatalog.length / ITEMS_PER_PAGE)}
+                                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
     );
 };
+
+const ProductCard = ({ product }: { product: any }) => (
+    <div className="border rounded-lg p-4 hover:shadow-md transition-shadow bg-white flex flex-col h-full">
+        <div className="h-48 flex items-center justify-center mb-4 bg-gray-50 rounded-md overflow-hidden relative group">
+            {product.thumbnail ? (
+                <img src={product.thumbnail} alt={product.title} className="max-h-full max-w-full object-contain transition-transform group-hover:scale-105" />
+            ) : (
+                <div className="text-gray-400">No Image</div>
+            )}
+        </div>
+        <div className="flex-grow">
+            <div className="text-xs font-bold text-blue-600 uppercase mb-1">{product.category || 'Product'}</div>
+            <h4 className="text-sm font-medium text-gray-900 line-clamp-2 mb-2" title={product.title}>
+                {product.title}
+            </h4>
+            <div className="flex items-center mb-2">
+                <span className="text-yellow-400 mr-1">★</span>
+                <span className="text-sm text-gray-600">{product.rating} ({product.reviews})</span>
+            </div>
+        </div>
+        <div className="mt-4 flex items-center justify-between pt-4 border-t border-gray-100">
+            <span className="text-lg font-bold text-gray-900">
+                ${typeof product.price_numeric === 'number' ? product.price_numeric.toFixed(2) : product.price}
+            </span>
+            <a 
+                href={product.link} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded hover:bg-gray-800 transition-colors"
+            >
+                View
+            </a>
+        </div>
+    </div>
+);
