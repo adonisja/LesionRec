@@ -69,15 +69,10 @@ except Exception as e:
     chatbot = None
 
 # ---- Security (CORS) ----
-# **Browsers block requests from different ports 5173 and 8000 by default**
-# This tells the browser to accept requests from localhost:5173 and production domains
-origins = ["http://localhost:5173"]
-if os.getenv("FRONTEND_URL"):
-    origins.append(os.getenv("FRONTEND_URL"))
-
+# Allow ALL origins to ensure Vercel can talk to Render
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
