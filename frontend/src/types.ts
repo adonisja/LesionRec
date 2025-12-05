@@ -1,3 +1,19 @@
+export interface Product {
+    name: string;
+    brand: string;
+    price: number;
+    rating: number;
+    reviews: number;
+    ingredients: string;
+    combination: number;
+    dry: number;
+    normal: number;
+    oily: number;
+    sensitive: number;
+    image_url?: string;
+    product_url?: string;
+}
+
 export interface AnalysisResponse {
     message: string;
     s3_path: string;
