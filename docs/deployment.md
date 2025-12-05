@@ -1,4 +1,55 @@
-# Google Cloud Deployment Guide - LesionRec
+# Deployment Guide for LesionRec (Lumina)
+
+This document outlines two deployment strategies:
+1.  **Option A: Render + Vercel (Recommended for Speed)** - Easiest for React/FastAPI.
+2.  **Option B: Google Cloud Platform (Enterprise)** - Full cloud-native deployment.
+
+---
+
+# Option A: Render + Vercel (Quick Start)
+
+This is the recommended path for rapid deployment and prototyping.
+
+## Prerequisites
+-   GitHub Account
+-   [Render](https://render.com/) Account (Backend)
+-   [Vercel](https://vercel.com/) Account (Frontend)
+-   AWS Account (S3) & Google Cloud Account (Gemini)
+
+## 1. Backend Deployment (Render)
+
+1.  **Prepare**: Ensure `backend/requirements.txt` is updated (`pip freeze > requirements.txt`).
+2.  **Create Service**:
+    *   Go to Render Dashboard -> New Web Service.
+    *   Connect your GitHub repo.
+    *   **Root Directory**: `backend`
+    *   **Build Command**: `pip install -r requirements.txt`
+    *   **Start Command**: `uvicorn src.main:app --host 0.0.0.0 --port 10000`
+3.  **Environment Variables**:
+    *   Add `GOOGLE_API_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET_NAME`.
+4.  **Deploy**: Click Create. Copy the resulting URL (e.g., `https://lumina-backend.onrender.com`).
+
+## 2. Frontend Deployment (Vercel)
+
+1.  **Configure**: Create `frontend/.env.production` locally (optional, or set in Vercel UI).
+2.  **Create Project**:
+    *   Go to Vercel Dashboard -> Add New Project.
+    *   Import GitHub repo.
+    *   **Root Directory**: `frontend`.
+    *   **Build Command**: `npm run build`.
+3.  **Environment Variables**:
+    *   `VITE_API_URL`: Your Render Backend URL (e.g., `https://lumina-backend.onrender.com`).
+4.  **Deploy**: Click Deploy.
+
+## 3. Final Connection
+1.  Copy your new Vercel domain (e.g., `https://lumina.vercel.app`).
+2.  Go back to Render -> Environment Variables.
+3.  Add `FRONTEND_URL` = `https://lumina.vercel.app`.
+4.  Redeploy Render to update CORS settings.
+
+---
+
+# Option B: Google Cloud Platform (Enterprise)
 
 ## Overview
 
