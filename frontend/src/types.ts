@@ -1,4 +1,5 @@
 export interface Product {
+    // Product interface for recommendations
     name: string;
     brand: string;
     price: number;

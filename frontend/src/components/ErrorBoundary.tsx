@@ -1,5 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
+// Error Boundary Component
+
 interface Props {
     children: ReactNode;
     fallback?: ReactNode;
