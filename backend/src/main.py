@@ -337,10 +337,15 @@ async def chat(request: ChatRequest):
             
         # Get response from chatbot
         response = await run_in_threadpool(chatbot.chat, request.message, history)
+
+        product_details = []
+        if response.get("recommended_products"):
+            product_details = recommender.find_products_by_names(response["recommended_products"])
         
         logger.info("Chat response generated successfully")
         return {
-            "response": response,
+            "response": response["response_text"],
+            "products": product_details,
             "user_id": request.user_id
         }
     except Exception as e:

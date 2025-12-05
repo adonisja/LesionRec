@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { ProductCard } from './RecommendedProducts';
+import type { Product } from '../types';
 
 interface Message {
     id: string;
     type: 'user' | 'bot';
     content: string;
     timestamp: Date;
+    products?: Product[];
 }
 
 interface Props {
@@ -76,6 +79,7 @@ export const Chatbot: React.FC<Props> = ({ userId }) => {
                 type: 'bot',
                 content: data.response || 'I couldn\'t process that. Please try again.',
                 timestamp: new Date(),
+                products: data.products || []
             };
 
             setMessages(prev => [...prev, botMessage]);
@@ -121,7 +125,22 @@ export const Chatbot: React.FC<Props> = ({ userId }) => {
                                     : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none'
                             }`}
                         >
-                            <p className="text-sm leading-relaxed">{message.content}</p>
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                            
+                            {/* Render Product Cards if available */}
+                            {message.products && message.products.length > 0 && (
+                                <div className="mt-4 pt-4 border-t border-gray-100">
+                                    <p className="text-xs font-bold text-gray-500 uppercase mb-2">Recommended Products</p>
+                                    <div className="flex gap-3 overflow-x-auto pb-2 snap-x">
+                                        {message.products.map((product, idx) => (
+                                            <div key={idx} className="min-w-[200px] max-w-[200px] snap-center">
+                                                <ProductCard product={product} compact={true} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             <span className={`text-xs mt-1 block ${
                                 message.type === 'user' ? 'text-blue-100' : 'text-gray-400'
                             }`}>

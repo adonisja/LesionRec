@@ -1,4 +1,4 @@
-# LesionRec (Lumina) 🔬✨
+# Lumina (formerly LesionRec) 🔬✨
 
 **AI-Powered Skin Analysis & Personalized Product Recommendation System**
 
@@ -8,7 +8,7 @@
 [![Gemini AI](https://img.shields.io/badge/AI-Gemini%202.0%20Flash-8E75B2.svg)](https://deepmind.google/technologies/gemini/)
 [![License](https://img.shields.io/badge/License-Personal%20%26%20Educational-green.svg)](#license)
 
-Lumina (formerly LesionRec) is a modern, full-stack application that leverages advanced AI to analyze skin conditions and generate personalized skincare routines. It combines a privacy-focused image processing pipeline with a sophisticated recommendation engine to offer users actionable insights and product bundles that fit their budget.
+Lumina is a modern, full-stack application that leverages advanced AI to analyze skin conditions and generate personalized skincare routines. It combines a privacy-focused image processing pipeline with a sophisticated recommendation engine to offer users actionable insights and product bundles that fit their budget.
 
 ---
 
@@ -28,8 +28,10 @@ The application is built using a modern decoupled architecture:
 - **State Management**: React Hooks + LocalStorage for persistence
 - **Key Components**:
   - `ImageUpload`: Handles camera capture and file uploads.
-  - `RecommendedProducts`: Displays analysis results and product bundles.
+  - `RecommendedProducts`: Displays analysis results, product bundles, and full catalog with sorting/pagination.
   - `ProductRoutine`: Visualizes the step-by-step skincare routine.
+  - `Chatbot`: Context-aware AI assistant for skin health Q&A.
+  - `ErrorBoundary`: Robust error handling to prevent app crashes.
 
 ### **Backend (Server-Side)**
 - **Framework**: FastAPI (Python)
@@ -48,13 +50,15 @@ The application is built using a modern decoupled architecture:
 1.  **Privacy-First Analysis**: All images are automatically scrubbed (faces blurred) to remove personally identifiable information before being stored or analyzed.
 2.  **Multi-Modal Input**: Supports both file uploads and live camera capture.
 3.  **AI-Driven Insights**: Detects conditions like Acne, Rosacea, Eczema, etc., and determines severity (Mild, Moderate, Severe).
-4.  **Smart Budgeting**:
-    - **Infinite Budget Mode**: Defaults to showing the absolute best products.
-    - **Dynamic Bundling**: Users can set a specific budget (e.g., ), and the system recalculates the optimal "Bundle" (Cleanser + Treatment + Moisturizer) to fit the sum within that limit.
-5.  **Dual-List Recommendations**:
-    - **The Bundle**: A cohesive routine where the *total cost* fits your budget.
-    - **Individual Picks**: A list of top-rated items where *each item* fits your budget.
-6.  **Persistence**: Analysis results are saved locally, allowing page refreshes without re-uploading images.
+4.  **Smart Budgeting & Bundling**:
+    - **Dynamic Bundling**: Users can set a specific budget (e.g., $50), and the system recalculates the optimal "Bundle" (Cleanser + Treatment + Moisturizer) to fit the sum within that limit.
+    - **Infinite Budget Mode**: Defaults to showing the absolute best products if no budget is set.
+5.  **Advanced Product Discovery**:
+    - **Personalized Bundle**: A cohesive routine where the *total cost* fits your budget.
+    - **Full Catalog View**: Browse all matching products with pagination.
+    - **Smart Sorting**: Sort products by **Price** (Low/High), **Rating**, or **Popularity** (Reviews).
+6.  **AI Chatbot Assistant**: Integrated chat interface to ask follow-up questions about the diagnosis or skincare advice.
+7.  **Persistence**: Analysis results are saved locally, allowing page refreshes without re-uploading images.
 
 ---
 
@@ -68,21 +72,23 @@ The application is built using a modern decoupled architecture:
 - `start-dev.sh`: Script to launch both frontend and backend.
 
 ### **Backend Breakdown (`backend/src/`)**
-- **`main.py`**: The entry point for the FastAPI server. Defines endpoints `/upload` and `/recommend`.
+- **`main.py`**: The entry point for the FastAPI server. Defines endpoints `/upload`, `/recommend`, and `/api/chat`.
 - **`services/`**:
   - `analysis.py`: Handles interaction with Google Gemini API.
   - `privacy.py`: Uses Google Vision API to detect and blur faces.
   - `product_recommender.py`: The core logic engine. Contains the "Knapsack-style" algorithm for bundling and filtering logic.
+  - `chatbot.py`: Manages the conversational AI logic.
   - `product_data_cleaner.py`: Utilities for cleaning and loading CSV data.
-  - `image_processor.py`: Helper functions for image manipulation.
 - **`data/`**: Contains the CSV files for different skin conditions (e.g., `acne_products.csv`, `rosacea_products.csv`).
 
 ### **Frontend Breakdown (`frontend/src/`)**
-- **`App.tsx`**: Main application controller. Handles routing between Upload and Results views.
+- **`App.tsx`**: Main application controller. Handles routing between Dashboard, Upload, Results, and Chat views.
 - **`components/`**:
   - `ImageUpload.tsx`: Manages file selection, camera streaming, and API upload calls.
-  - `RecommendedProducts.tsx`: The results dashboard. Manages the budget state and displays the bundle/list.
+  - `RecommendedProducts.tsx`: The results dashboard. Manages the budget state, sorting, pagination, and displays the bundle/list.
   - `ProductRoutine.tsx`: Renders the "Bundle" as a visual step-by-step card grid.
+  - `Chatbot.tsx`: The chat interface component.
+  - `ErrorBoundary.tsx`: Catches runtime errors to display a friendly fallback UI.
 
 ---
 
@@ -97,7 +103,7 @@ The application is built using a modern decoupled architecture:
     - *Response*: JSON containing `condition` (e.g., "acne"), `severity`, and `characterization`.
 6.  **Backend (Recommendation)**: `product_recommender.py` takes the analysis:
     - Loads the relevant product CSV (e.g., `acne_products.csv`).
-    - **Bundle Logic**: Selects a Cleanser, Treatment, and Moisturizer such that `Sum(Prices) <= Budget`. (Defaults to Infinite if no budget).
+    - **Bundle Logic**: Selects a Cleanser, Treatment, and Moisturizer such that `Sum(Prices) <= Budget`.
     - **List Logic**: Selects top-rated items where `Item_Price <= Budget`.
 7.  **Response**: Backend returns the Analysis + Bundle + Recommendations to Frontend.
 8.  **Frontend**: `App.tsx` saves data to `localStorage` and switches to `RecommendedProducts.tsx` view.

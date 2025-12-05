@@ -8,6 +8,7 @@ import logging
 from typing import Optional, List, Dict
 import google.generativeai as genai
 import re
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,8 @@ class SkinHealthChatbot:
         
         
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel("gemini-pro")
+        # Updated to use a supported model
+        self.model = genai.GenerativeModel("gemini-2.5-pro")
         
         self.system_prompt = """You are an expert dermatology assistant and skincare expert. 
             Your role is to provide accurate, helpful information about:
@@ -44,7 +46,16 @@ class SkinHealthChatbot:
 
             Keep responses concise but informative (2-3 paragraphs max).
             Use bullet points for lists when helpful.
-            Maintain a friendly, supportive tone."""
+            Maintain a friendly, supportive tone.
+            
+            IMPORTANT: You must return your response in valid JSON format with the following structure:
+            {
+                "response_text": "Your helpful, empathetic advice here. Use Markdown formatting (bullet points, bold text) for readability.",
+                "recommended_products": ["Product 1", "Product 2", ..., "Product N"]
+            }
+
+            When recommending products, try to be specific with product names so we can look them up in our product catalog.
+            """
         
     def _sanitize_input(self, text: str) -> tuple[bool, str]:
         """
@@ -109,10 +120,23 @@ class SkinHealthChatbot:
             response = self.model.generate_content(full_prompt)
             
             # Extract text from response
-            bot_response = response.text
+            response = response.text
+
+            # Clean up any potential markdown code blocks
+            if response.startswith("```json"):
+                response = response.replace("```json", "").replace("```", "")
+            
+            try:
+                response_data = json.loads(response)
+            except json.JSONDecodeError:
+                # Fallback if AI fails to output JSON
+                response_data = {
+                    "response_text": response,
+                    "recommended_products": []
+                }
             
             logger.info(f"Chat response generated successfully")
-            return bot_response
+            return response_data
             
         except Exception as e:
             logger.error(f"Error generating chat response: {e}")

@@ -238,34 +238,34 @@ export const RecommendedProducts = ({ data, onBack }: Props) => {
     );
 };
 
-const ProductCard = ({ product }: { product: any }) => (
-    <div className="border rounded-lg p-4 hover:shadow-md transition-shadow bg-white flex flex-col h-full">
-        <div className="h-48 flex items-center justify-center mb-4 bg-gray-50 rounded-md overflow-hidden relative group">
+export const ProductCard = ({ product, compact = false }: { product: any, compact?: boolean }) => (
+    <div className={`border rounded-lg hover:shadow-md transition-shadow bg-white flex flex-col h-full ${compact ? 'p-3 min-w-[180px]' : 'p-4'}`}>
+        <div className={`${compact ? 'h-32' : 'h-48'} flex items-center justify-center mb-4 bg-gray-50 rounded-md overflow-hidden relative group`}>
             {product.thumbnail ? (
                 <img src={product.thumbnail} alt={product.title} className="max-h-full max-w-full object-contain transition-transform group-hover:scale-105" />
             ) : (
-                <div className="text-gray-400">No Image</div>
+                <div className="text-gray-400 text-xs">No Image</div>
             )}
         </div>
-        <div className="flex-grow">
+        <div className="grow">
             <div className="text-xs font-bold text-blue-600 uppercase mb-1">{product.category || 'Product'}</div>
-            <h4 className="text-sm font-medium text-gray-900 line-clamp-2 mb-2" title={product.title}>
+            <h4 className={`font-medium text-gray-900 line-clamp-2 mb-2 ${compact ? 'text-xs' : 'text-sm'}`} title={product.title}>
                 {product.title}
             </h4>
             <div className="flex items-center mb-2">
-                <span className="text-yellow-400 mr-1">★</span>
-                <span className="text-sm text-gray-600">{product.rating} ({product.reviews})</span>
+                <span className="text-yellow-400 mr-1 text-xs">★</span>
+                <span className="text-xs text-gray-600">{product.rating} ({product.reviews})</span>
             </div>
         </div>
-        <div className="mt-4 flex items-center justify-between pt-4 border-t border-gray-100">
-            <span className="text-lg font-bold text-gray-900">
+        <div className={`flex items-center justify-between border-t border-gray-100 ${compact ? 'mt-2 pt-2' : 'mt-4 pt-4'}`}>
+            <span className={`${compact ? 'text-sm' : 'text-lg'} font-bold text-gray-900`}>
                 ${typeof product.price_numeric === 'number' ? product.price_numeric.toFixed(2) : product.price}
             </span>
             <a 
                 href={product.link} 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded hover:bg-gray-800 transition-colors"
+                className={`bg-gray-900 text-white font-medium rounded hover:bg-gray-800 transition-colors ${compact ? 'px-2 py-1 text-[10px]' : 'px-3 py-1.5 text-xs'}`}
             >
                 View
             </a>
