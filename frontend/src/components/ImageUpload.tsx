@@ -320,7 +320,9 @@ export const ImageUpload = ({ userId, onAnalysisComplete }: ImageUploadProps) =>
 
         try {
             // 2. Send Post request to upload endpoint
-            const response = await fetch('http://localhost:8000/upload', { 
+            // Send to backend
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            const response = await fetch(`${API_URL}/upload`, { 
                 method: 'POST',
                 body: formData,
             });

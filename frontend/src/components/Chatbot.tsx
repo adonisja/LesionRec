@@ -53,7 +53,8 @@ export const Chatbot: React.FC<Props> = ({ userId }) => {
 
         try {
             // Call the backend API
-            const response = await fetch('http://localhost:8000/api/chat', {
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            const response = await fetch(`${API_URL}/api/chat`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

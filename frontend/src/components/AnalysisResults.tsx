@@ -30,9 +30,10 @@ export const AnalysisResults = ({ data, onBack, onViewProducts }: Props) => {
     useEffect(() => {
         const refreshUrl = async () => {
             // If we have a key, try to get a fresh URL
-            if (data.s3_key) {
-                try {
-                    const response = await fetch('http://localhost:8000/api/image-url', {
+            try {
+                const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+                if (data.s3_key) {
+                    const response = await fetch(`${API_URL}/api/image-url`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
