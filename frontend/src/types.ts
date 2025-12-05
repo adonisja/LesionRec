@@ -9,6 +9,7 @@ export interface AnalysisResponse {
     product_recommendations: {
         bundle?: any[];
         recommendations?: any[];
+        full_catalog?: any[];
         total_cost?: number;
         budget_max?: number;
     };

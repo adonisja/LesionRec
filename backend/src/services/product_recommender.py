@@ -3,6 +3,8 @@ from typing import Dict, List, Any, Tuple, Optional
 import logging
 import json
 from .product_data_cleaner import ProductDataCleaner
+import re
+import re
 
 
 logger = logging.getLogger(__name__)
@@ -533,4 +535,53 @@ class ProductRecommender:
             "best_value": self.get_randomized_top_n(combined_df, 'price_numeric', n=top_n),
             "full_catalog": combined_df.sample(frac=1).to_dict('records') if not combined_df.empty else []
         }
+    
+    def find_products_by_names(self, product_names: List[str]) -> List[Dict]:
+        """
+        Find products in the catalog that match the given names using fuzzy matching.
+        """
+        found_products = []
+        
+        # Flatten all products into one DataFrame for searching
+        # In a real production app, you'd want to cache this or use a proper search engine
+        all_products_list = []
+        for condition, df in self.products.items():
+            # Add condition to the product data so we know where it came from
+            df_copy = df.copy()
+            df_copy['condition_tag'] = condition
+            all_products_list.append(df_copy)
+            
+        if not all_products_list:
+            return []
+            
+        all_products_df = pd.concat(all_products_list, ignore_index=True)
+        
+        # Remove duplicates based on title (since same product might appear in multiple conditions)
+        all_products_df = all_products_df.drop_duplicates(subset=['title'])
+        
+        for name in product_names:
+            # 1. Try simple case-insensitive substring match
+            # "CeraVe" in "CeraVe Hydrating Cleanser" -> Match
+            # We use regex=False for speed and safety
+            match = all_products_df[all_products_df['title'].str.contains(name, case=False, regex=False)]
+            
+            if not match.empty:
+                # Take the highest rated one from the matches
+                best_match = match.sort_values('rating', ascending=False).iloc[0]
+                found_products.append(best_match.to_dict())
+            else:
+                # 2. Optional: Try splitting words if no full match
+                # e.g. "CeraVe Cleanser" -> match "CeraVe" AND "Cleanser"
+                words = name.split()
+                if len(words) > 1:
+                    # Create a regex that requires ALL words to be present
+                    # (?=.*word1)(?=.*word2)
+                    pattern = "".join([f"(?=.*{re.escape(w)})" for w in words])
+                    match = all_products_df[all_products_df['title'].str.contains(pattern, case=False, regex=True)]
+                    
+                    if not match.empty:
+                        best_match = match.sort_values('rating', ascending=False).iloc[0]
+                        found_products.append(best_match.to_dict())
+
+        return found_products
 
