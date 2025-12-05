@@ -45,9 +45,9 @@ export const AnalysisResults = ({ data, onBack, onViewProducts }: Props) => {
                         const result = await response.json();
                         setImageUrl(result.url);
                     }
-                } catch (error) {
-                    console.error("Failed to refresh image URL:", error);
                 }
+            } catch (error) {
+                console.error("Failed to refresh image URL:", error);
             }
         };
 
