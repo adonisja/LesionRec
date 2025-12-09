@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react"
 import type { AnalysisResponse } from "../types";
+import { removeBackground } from "@imgly/background-removal";
+import { remove } from "aws-amplify/storage";
 
 type CaptureMode = 'file' | 'camera' | 'preview';
 
@@ -19,6 +21,46 @@ export const ImageUpload = ({ userId, onAnalysisComplete }: ImageUploadProps) =>
     const [isLoadingCamera, setIsLoadingCamera] = useState(false);         // UX: Show loading spinner while requesting camera access
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);       // URL for previewing captured image
     const [isVideoReady, setIsVideoReady] = useState(false);                // Track if video metadata is loaded
+    const [isProcessingBgRemoval, setIsProcessingBgRemoval] = useState(false); // Track background removal processing state
+    const [processedImageUrl, setProcessedImageUrl] = useState<string | null>(null); // URL of background-removed image
+    const [processedImageFile, setProcessedImageFile] = useState<File | null>(null); // File of background-removed image
+    
+
+    const processAndSetFile = async (file: File) => {
+        setIsProcessingBgRemoval(true);
+        setCaptureMode('preview'); // Switch to preview immediately
+        
+        try {
+            console.log("Starting background removal...");
+            // 1. Remove Background
+            const blob = await removeBackground(file);
+            
+            // 2. Create a new File object (strips EXIF data automatically)
+            const processedFile = new File([blob], file.name, { type: 'image/png' });
+            
+            // 3. Create URL for preview
+            const url = URL.createObjectURL(blob);
+            
+            // 4. Update all states to use the PROCESSED file
+            setProcessedImageUrl(url);
+            setProcessedImageFile(processedFile);
+            
+            // Update legacy states so existing upload logic works
+            setSelectedFile(processedFile);
+            setCapturedImage(processedFile);
+            setPreviewUrl(url);
+            
+        } catch (error) {
+            console.error('Background removal failed:', error);
+            // Fallback: Use original file if removal fails
+            setSelectedFile(file);
+            setCapturedImage(file);
+            setPreviewUrl(URL.createObjectURL(file));
+        } finally {
+            setIsProcessingBgRemoval(false);
+        }
+    };
+    
 
     // 1. Manage Stream Lifecycle (Stop tracks when stream changes or unmounts)
     useEffect(() => {
@@ -178,7 +220,7 @@ export const ImageUpload = ({ userId, onAnalysisComplete }: ImageUploadProps) =>
 
         console.log(`Initial capture dimensions: ${captureWidth}x${captureHeight}`);
 
-        // If video element dimensions are invalid, try multiple fallback strategies
+        // If video element dimensions are invalid, we'll try multiple fallback strategies
         if (captureWidth <= 2 || captureHeight <= 2) {
             // Strategy 1: Use captured dimensions from when stream was created
             const storedWidth = (stream as any)._capturedWidth;
@@ -257,16 +299,10 @@ export const ImageUpload = ({ userId, onAnalysisComplete }: ImageUploadProps) =>
 
             console.log(`File created: ${file.name}, size: ${file.size}`);
 
-            // 5: Store the captured image
-            setCapturedImage(file);
-            const url = URL.createObjectURL(file);
-            console.log(`Preview URL created: ${url}`);
-            setPreviewUrl(url);
+            // 5: Process the captured image (Remove Background)
+            processAndSetFile(file);
 
-            // 6: Switch to preview mode
-            setCaptureMode('preview');
-
-            // 7: Stop the camera stream
+            // 6: Stop the camera stream
             stopCamera();
         }, 'image/jpeg', 0.95); // High quality JPEG
     };
@@ -303,7 +339,7 @@ export const ImageUpload = ({ userId, onAnalysisComplete }: ImageUploadProps) =>
     // Handle file selection from file input
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
-            handleFileSelection(event.target.files[0]);
+            processAndSetFile(event.target.files[0]);
         }
     }
 
@@ -414,30 +450,45 @@ export const ImageUpload = ({ userId, onAnalysisComplete }: ImageUploadProps) =>
                 </div>
             )}
 
-            {/* Mode: Preview Captured Image */}
-            { captureMode === 'preview' && capturedImage && (
+            {/* Mode: Preview Captured/Selected Image */}
+            { captureMode === 'preview' && (capturedImage || isProcessingBgRemoval) && (
                 <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
                     <div className="relative w-full max-w-md h-[75vh] bg-black rounded-2xl overflow-hidden shadow-2xl border border-gray-800 flex flex-col">
+                        
+                        {/* Loading Overlay for Background Removal */}
+                        {isProcessingBgRemoval && (
+                            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm text-white">
+                                <div className="animate-spin h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full mb-4"></div>
+                                <p className="font-medium">Removing Background...</p>
+                                <p className="text-xs text-gray-400 mt-2">Ensuring privacy & stripping metadata</p>
+                            </div>
+                        )}
+
                         <img
                             src={previewUrl || ''}
-                            alt="Captured photo"
-                            className="w-full h-full object-contain"
+                            alt="Processed photo"
+                            className="w-full h-full object-contain bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2NkYGAQYcAP3uCTZhw1gGGYhAGBZIA/nYDCgBDAm9BGDWAAJyRCgLaBCAAgXwixzAS0pgAAAABJRU5ErkJggg==')] bg-repeat"
                         />
                         
                         {/* Preview Controls Overlay */}
                         <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex justify-between items-end">
                             <button 
-                                onClick={handleRetake}
-                                className="px-6 py-3 rounded-full bg-gray-800/80 text-white font-medium backdrop-blur-sm hover:bg-gray-700 transition-all border border-gray-600"
+                                onClick={() => {
+                                    setCaptureMode('file');
+                                    setCapturedImage(null);
+                                    setSelectedFile(null);
+                                }}
+                                disabled={isProcessingBgRemoval}
+                                className="px-6 py-3 rounded-full bg-gray-800/80 text-white font-medium backdrop-blur-sm hover:bg-gray-700 transition-all border border-gray-600 disabled:opacity-50"
                             >
-                                ↺ Retake
+                                ✕ Cancel
                             </button>
                             
                             <button 
                                 onClick={handleUploadCaptured}
-                                disabled={isLoadingCamera}
+                                disabled={isLoadingCamera || isProcessingBgRemoval}
                                 className={`px-6 py-3 rounded-full text-white font-bold shadow-lg transition-all transform flex items-center gap-2 ${
-                                    isLoadingCamera 
+                                    isLoadingCamera || isProcessingBgRemoval
                                     ? 'bg-gray-500 cursor-wait' 
                                     : 'bg-blue-600 hover:bg-blue-500 hover:scale-105'
                                 }`}
@@ -445,7 +496,7 @@ export const ImageUpload = ({ userId, onAnalysisComplete }: ImageUploadProps) =>
                                 {isLoadingCamera ? (
                                     <>
                                         <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
-                                        Processing...
+                                        Uploading...
                                     </>
                                 ) : (
                                     <>Analyze →</>
