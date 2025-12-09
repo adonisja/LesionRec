@@ -25,7 +25,7 @@ except Exception as e:
 
 def _run_gemini_sync(image_bytes: bytes, mime_type: str) -> str:
     """
-    Blocking call to Gemini 2.0 Flash with strict JSON output enforcement.
+    Blocking call to Gemini 2.5 Flash with strict JSON output enforcement.
 
     This is the Brain of the ensemble.
     It performs qualitative analysis on the image, providing recommendations, characterizations, etc.
@@ -44,7 +44,7 @@ def _run_gemini_sync(image_bytes: bytes, mime_type: str) -> str:
         # 2. Initialize model with JSON enforcement
         # Using Gemini 2.5 Pro for superior reasoning and spatial awareness
         model = genai.GenerativeModel(
-            'gemini-2.5-pro', 
+            'gemini-2.5-flash', 
             generation_config=generation_config
         )
 

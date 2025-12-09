@@ -24,7 +24,7 @@ class SkinHealthChatbot:
         
         genai.configure(api_key=api_key)
         # Updated to use a supported model
-        self.model = genai.GenerativeModel("gemini-2.5-pro")
+        self.model = genai.GenerativeModel("gemini-2.5-flash")
         
         self.system_prompt = """You are an expert dermatology assistant and skincare expert. 
             Your role is to provide accurate, helpful information about:
