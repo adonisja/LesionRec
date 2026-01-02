@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { AnalysisResponse, Product } from '../types';
 
 interface DailyLog {
     date: string;
@@ -6,6 +7,16 @@ interface DailyLog {
     notes?: string;
     skinCondition?: string;
     mood?: string;
+    analysisSummary?: {
+        condition: string;
+        severity: string;
+    };
+    routine?: {
+        id: string;
+        name: string;
+        category: string;
+        completed: boolean;
+    }[];
 }
 
 interface DashboardStats {
@@ -19,7 +30,7 @@ interface Props {
     onStartAnalysis: () => void;
     onViewProducts: () => void;
     onViewResults: () => void;
-    analysisData: any;
+    analysisData: AnalysisResponse | null;
 }
 
 export const Dashboard: React.FC<Props> = ({ onStartAnalysis, onViewProducts, onViewResults, analysisData }) => {
@@ -52,6 +63,56 @@ export const Dashboard: React.FC<Props> = ({ onStartAnalysis, onViewProducts, on
         localStorage.setItem('lesionrec_dashboard_stats', JSON.stringify(stats));
     }, [stats]);
 
+    // Auto-save analysis to diary when available
+    useEffect(() => {
+        if (analysisData && stats.logs) {
+            const today = new Date().toISOString().split('T')[0];
+            // We need to use a functional update to ensure we have the latest stats
+            // However, since stats is in the dependency array of the saver, we can just update it here.
+            // But we need to be careful not to create an infinite loop.
+            // We check if the log for today already has this specific analysis data.
+            
+            const existingLogIndex = stats.logs.findIndex(l => l.date === today);
+            let log = existingLogIndex >= 0 ? { ...stats.logs[existingLogIndex] } : { date: today, completed: false };
+            
+            // Only update if analysisSummary is missing
+            if (!log.analysisSummary) {
+                try {
+                    const analysisJson = JSON.parse(analysisData.ai_analysis.analysis);
+                    
+                    const newLog: DailyLog = {
+                        ...log,
+                        analysisSummary: {
+                            condition: analysisJson.condition,
+                            severity: analysisJson.severity
+                        },
+                        routine: analysisData.product_recommendations?.bundle.map((p: Product, index: number) => ({
+                            id: p.id || `prod-${index}-${Date.now()}`,
+                            name: p.title || p.name || 'Unknown Product',
+                            category: p.category || 'General',
+                            completed: false
+                        })) || []
+                    };
+
+                    const newLogs = [...stats.logs];
+                    if (existingLogIndex >= 0) {
+                        newLogs[existingLogIndex] = newLog;
+                    } else {
+                        newLogs.push(newLog);
+                    }
+
+                    setStats(prev => ({
+                        ...prev,
+                        logs: newLogs
+                    }));
+                } catch (e) {
+                    console.error("Error parsing analysis for diary", e);
+                }
+            }
+        }
+    }, [analysisData, stats.logs.length]); // Depend on logs.length to avoid deep cycle, but might miss updates. 
+    // Actually, better to just check if today's log has analysis.
+
     const loadDiaryForDate = (date: string) => {
         const log = stats.logs.find(log => log.date === date);
         if (log) {
@@ -62,6 +123,24 @@ export const Dashboard: React.FC<Props> = ({ onStartAnalysis, onViewProducts, on
             setDiaryNote('');
             setSkinCondition('normal');
             setMood('good');
+        }
+    };
+
+    const toggleRoutineItem = (date: string, productId: string) => {
+        const newStats = { ...stats };
+        const log = newStats.logs.find(l => l.date === date);
+        if (log && log.routine) {
+            const item = log.routine.find(i => i.id === productId);
+            if (item) {
+                item.completed = !item.completed;
+                // Check if all routine items are completed to mark day as completed
+                const allCompleted = log.routine.every(i => i.completed);
+                // Only auto-complete if there are items
+                if (log.routine.length > 0) {
+                    log.completed = allCompleted;
+                }
+                setStats(newStats);
+            }
         }
     };
 
@@ -239,28 +318,94 @@ export const Dashboard: React.FC<Props> = ({ onStartAnalysis, onViewProducts, on
 
             {/* Diary & Insights */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Latest Diary Entry */}
-                <div className="lg:col-span-2 bg-white p-8 rounded-xl shadow-lg">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-4">📔 Latest Diary Entry</h2>
-                    <div className="bg-gradient-to-br from-amber-50 to-yellow-50 p-6 rounded-lg border border-amber-200">
-                        {stats.logs.length > 0 ? (
-                            <div className="space-y-4">
-                                <p className="text-sm text-gray-600">
-                                    <strong>Date:</strong> {stats.logs[stats.logs.length - 1].date}
-                                </p>
-                                <p className="text-gray-700">
-                                    {stats.logs[stats.logs.length - 1].notes || 'No diary entry yet. Click a day to add one!'}
-                                </p>
-                                {stats.logs[stats.logs.length - 1].skinCondition && (
-                                    <div className="flex gap-4 text-sm">
-                                        <p><strong>Skin:</strong> {stats.logs[stats.logs.length - 1].skinCondition}</p>
-                                        <p><strong>Mood:</strong> {stats.logs[stats.logs.length - 1].mood}</p>
+                {/* Latest Diary Entry & Routine */}
+                <div className="lg:col-span-2 space-y-6">
+                    {/* Today's Routine */}
+                    {stats.logs.find(l => l.date === new Date().toISOString().split('T')[0])?.routine && (
+                        <div className="bg-white p-8 rounded-xl shadow-lg">
+                            <h2 className="text-2xl font-bold text-gray-800 mb-4">🧴 Today's Routine</h2>
+                            <div className="space-y-3">
+                                {stats.logs.find(l => l.date === new Date().toISOString().split('T')[0])?.routine?.map((item) => (
+                                    <div 
+                                        key={item.id}
+                                        onClick={() => toggleRoutineItem(new Date().toISOString().split('T')[0], item.id)}
+                                        className={`flex items-center p-4 rounded-lg border cursor-pointer transition-all ${
+                                            item.completed 
+                                                ? 'bg-green-50 border-green-200' 
+                                                : 'bg-white border-gray-200 hover:border-blue-300'
+                                        }`}
+                                    >
+                                        <div className={`w-6 h-6 rounded-full border-2 mr-4 flex items-center justify-center ${
+                                            item.completed ? 'bg-green-500 border-green-500' : 'border-gray-300'
+                                        }`}>
+                                            {item.completed && <span className="text-white text-sm">✓</span>}
+                                        </div>
+                                        <div>
+                                            <p className={`font-semibold ${item.completed ? 'text-green-800 line-through' : 'text-gray-800'}`}>
+                                                {item.name}
+                                            </p>
+                                            <p className="text-xs text-gray-500 uppercase tracking-wide">{item.category}</p>
+                                        </div>
                                     </div>
-                                )}
+                                ))}
                             </div>
-                        ) : (
-                            <p className="text-gray-500 italic">No diary entries yet. Start by clicking a day above!</p>
-                        )}
+                        </div>
+                    )}
+
+                    {/* Latest Diary Entry */}
+                    <div className="bg-white p-8 rounded-xl shadow-lg">
+                        <h2 className="text-2xl font-bold text-gray-800 mb-4">📔 Latest Diary Entry</h2>
+                        <div className="bg-gradient-to-br from-amber-50 to-yellow-50 p-6 rounded-lg border border-amber-200">
+                            {stats.logs.length > 0 ? (
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-start">
+                                        <p className="text-sm text-gray-600">
+                                            <strong>Date:</strong> {stats.logs[stats.logs.length - 1].date}
+                                        </p>
+                                        {stats.logs[stats.logs.length - 1].analysisSummary && (
+                                            <span className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full font-semibold">
+                                                AI Analyzed
+                                            </span>
+                                        )}
+                                    </div>
+                                    
+                                    <p className="text-gray-700">
+                                        {stats.logs[stats.logs.length - 1].notes || 'No diary entry yet. Click a day to add one!'}
+                                    </p>
+                                    
+                                    <div className="flex flex-wrap gap-4 text-sm">
+                                        {stats.logs[stats.logs.length - 1].skinCondition && (
+                                            <p><strong>Skin:</strong> {stats.logs[stats.logs.length - 1].skinCondition}</p>
+                                        )}
+                                        {stats.logs[stats.logs.length - 1].mood && (
+                                            <p><strong>Mood:</strong> {stats.logs[stats.logs.length - 1].mood}</p>
+                                        )}
+                                    </div>
+
+                                    {stats.logs[stats.logs.length - 1].analysisSummary && (
+                                        <div className="mt-4 pt-4 border-t border-amber-200">
+                                            <p className="text-xs font-bold text-gray-500 uppercase mb-2">Analysis Result</p>
+                                            <div className="flex gap-4">
+                                                <div>
+                                                    <span className="text-xs text-gray-500">Condition</span>
+                                                    <p className="font-semibold text-gray-800">
+                                                        {stats.logs[stats.logs.length - 1].analysisSummary?.condition}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-xs text-gray-500">Severity</span>
+                                                    <p className="font-semibold text-gray-800">
+                                                        {stats.logs[stats.logs.length - 1].analysisSummary?.severity}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-gray-500 italic">No diary entries yet. Start by clicking a day above!</p>
+                            )}
+                        </div>
                     </div>
                 </div>
 

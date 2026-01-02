@@ -42,7 +42,7 @@ def _run_gemini_sync(image_bytes: bytes, mime_type: str) -> str:
         }
 
         # 2. Initialize model with JSON enforcement
-        # Using Gemini 2.5 Pro for superior reasoning and spatial awareness
+        # Using Gemini 2.5 Flash for speed and efficiency
         model = genai.GenerativeModel(
             'gemini-2.5-flash', 
             generation_config=generation_config

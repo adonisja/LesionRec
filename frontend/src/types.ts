@@ -1,6 +1,9 @@
 export interface Product {
     // Product interface for recommendations
-    name: string;
+    name?: string; // Some components might use name
+    title?: string; // Backend returns title
+    category?: string;
+    id?: string;
     brand: string;
     price: number;
     rating: number;
@@ -13,6 +16,9 @@ export interface Product {
     sensitive: number;
     image_url?: string;
     product_url?: string;
+    thumbnail?: string;
+    link?: string;
+    reason?: string;
 }
 
 export interface AnalysisResponse {
