@@ -34,7 +34,7 @@ export const ImageUpload = ({ userId, onAnalysisComplete }: ImageUploadProps) =>
             // Configure to use CDN for assets to avoid 404s on Vercel
             // This fetches the WASM and ONNX files from img.ly's static CDN instead of local public folder
             const config = {
-                publicPath: "https://static.img.ly/background-removal-data/1.7.0/",
+                publicPath: "https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/",
                 debug: true
             };
 
