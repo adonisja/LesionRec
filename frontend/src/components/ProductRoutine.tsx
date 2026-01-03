@@ -81,7 +81,7 @@ export const ProductRoutine = ({ products }: Props) => {
 
                         <div className="mt-4 flex items-center justify-between pt-3 border-t border-gray-100">
                             <span className="text-lg font-bold text-gray-900">
-                                {product.price_numeric ? `$${product.price_numeric.toFixed(2)}` : (typeof product.price === 'number' ? `$${product.price.toFixed(2)}` : product.price)}
+                                {typeof product.price === 'number' ? `$${product.price.toFixed(2)}` : product.price}
                             </span>
                             {(product.link || product.product_url) && (
                                 <a 

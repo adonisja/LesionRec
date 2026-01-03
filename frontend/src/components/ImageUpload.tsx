@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react"
 import type { AnalysisResponse } from "../types";
 import { removeBackground } from "@imgly/background-removal";
-import { remove } from "aws-amplify/storage";
 
 type CaptureMode = 'file' | 'camera' | 'preview';
 
@@ -22,8 +21,6 @@ export const ImageUpload = ({ userId, onAnalysisComplete }: ImageUploadProps) =>
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);       // URL for previewing captured image
     const [isVideoReady, setIsVideoReady] = useState(false);                // Track if video metadata is loaded
     const [isProcessingBgRemoval, setIsProcessingBgRemoval] = useState(false); // Track background removal processing state
-    const [processedImageUrl, setProcessedImageUrl] = useState<string | null>(null); // URL of background-removed image
-    const [processedImageFile, setProcessedImageFile] = useState<File | null>(null); // File of background-removed image
     const [bgRemovalError, setBgRemovalError] = useState<string | null>(null); // UX: Show if background removal fails
 
     const processAndSetFile = async (file: File) => {
@@ -51,8 +48,6 @@ export const ImageUpload = ({ userId, onAnalysisComplete }: ImageUploadProps) =>
             const url = URL.createObjectURL(blob);
             
             // 4. Update all states to use the PROCESSED file
-            setProcessedImageUrl(url);
-            setProcessedImageFile(processedFile);
             
             // Update legacy states so existing upload logic works
             setSelectedFile(processedFile);
@@ -323,11 +318,6 @@ export const ImageUpload = ({ userId, onAnalysisComplete }: ImageUploadProps) =>
             stream.getTracks().forEach((track) => track.stop());
             setStream(null);
         }
-    };
-
-    const handleRetake = () => {
-        setCapturedImage(null);
-        startCamera();  // Restart camera for retake
     };
 
     // Handle file selection logic (shared by both upload methods)

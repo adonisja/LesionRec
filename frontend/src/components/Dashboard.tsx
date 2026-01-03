@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AnalysisResponse, Product } from '../types';
+import type { AnalysisResponse, Product } from '../types';
 
 interface DailyLog {
     date: string;
@@ -86,7 +86,7 @@ export const Dashboard: React.FC<Props> = ({ onStartAnalysis, onViewProducts, on
                             condition: analysisJson.condition,
                             severity: analysisJson.severity
                         },
-                        routine: analysisData.product_recommendations?.bundle.map((p: Product, index: number) => ({
+                        routine: analysisData.product_recommendations?.bundle?.map((p: Product, index: number) => ({
                             id: p.id || `prod-${index}-${Date.now()}`,
                             name: p.title || p.name || 'Unknown Product',
                             category: p.category || 'General',
