@@ -69,10 +69,17 @@ except Exception as e:
     chatbot = None
 
 # ---- Security (CORS) ----
-# Allow ALL origins to ensure Vercel can talk to Render
+# Explicitly allow origins to support credentials
+origins = [
+    "http://localhost:5173",  # Local Vite
+    "http://localhost:3000",  # Local React
+    "https://lumina-rosy.vercel.app", # Production Frontend
+    "https://lumina-rosy.vercel.app/", # Production Frontend (trailing slash)
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
