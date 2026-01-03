@@ -66,3 +66,51 @@ We need a "Defense in Depth" strategy:
 4.  **Disclaimer & UI Friction:**
     *   Always display a prominent medical disclaimer.
     *   For severe classifications, require the user to click "I understand this is not a medical diagnosis" before revealing the results.
+
+---
+
+## 4. Project Evaluation & Resume Summary
+
+### Project Status Evaluation (Jan 2026)
+- **Architecture**: Successfully migrated from Streamlit/YOLO to React/FastAPI/Gemini.
+- **Strengths**:
+    - **Modern Stack**: React 18, Vite, Tailwind, FastAPI.
+    - **AI Integration**: Gemini 2.5 Flash provides detailed qualitative analysis (better than simple YOLO detection).
+    - **User Experience**: Client-side image processing, responsive dashboard, streak tracking.
+- **Weaknesses / Missing Features**:
+    - **Data Persistence**: Dashboard relies on `localStorage`. No backend database for user data (yet).
+    - **Testing**: Automated tests are minimal.
+
+### Resume Summary
+**Lumina (AI Skincare Assistant) | Full Stack Developer**
+*   Architected and deployed a privacy-focused dermatological analysis platform using **React**, **FastAPI**, and **Google Gemini 2.5 Flash**.
+*   Engineered a multi-modal analysis pipeline that combines computer vision for object localization with LLMs for qualitative skin condition assessment.
+*   Developed a dynamic "Knapsack-style" recommendation algorithm to generate personalized product bundles that maximize efficacy within user-defined budgets.
+*   Implemented **Client-Side Background Removal** using WebAssembly (WASM) to strip background details and metadata before upload, ensuring user privacy and reducing server load.
+*   Integrated **AWS Amplify** for secure authentication and deployed microservices on **Vercel** (Frontend) and **Render** (Backend).
+
+### Key Skills & Topics
+*   **AI/ML**: LLM Integration (Gemini), Prompt Engineering, Computer Vision (Google Vision API), Ensemble Methods.
+*   **Frontend**: React, TypeScript, Tailwind CSS, State Management (Hooks/Context), Client-side Image Manipulation (WASM).
+*   **Backend**: Python, FastAPI, RESTful API Design, Pydantic Validation, Asynchronous Processing.
+*   **DevOps**: CI/CD (Vercel/Render), Environment Management, Git Workflow.
+*   **Soft Skills**: Product Pivot (YOLO -> LLM), User-Centric Design (Privacy First), Technical Documentation.
+
+---
+
+## 5. Step-by-Step Walkthrough (The "Elevator Pitch")
+
+**"Tell me about your LesionRec/Lumina project."**
+
+1.  **The Problem**: "I noticed that generic skincare advice often fails because it doesn't account for specific skin conditions or budget constraints. I wanted to build a tool that bridges the gap between professional dermatology and accessible home care."
+
+2.  **The Solution**: "I built Lumina, a web app that lets users upload a selfie to get an instant AI analysis of their skin condition (like acne or rosacea) and receives a personalized product routine that fits their exact budget."
+
+3.  **The Tech Stack**: "I started with a simple Streamlit prototype using YOLO models, but I realized I needed more qualitative insights. I pivoted to a decoupled architecture:
+    *   **Frontend**: React with TypeScript for a responsive, app-like experience.
+    *   **Backend**: FastAPI for high-performance async handling.
+    *   **AI**: I used an ensemble approach. Google Vision handles the 'where' (finding the face/blemishes), and Gemini 2.5 Flash handles the 'what' (explaining the condition and recommending ingredients)."
+
+4.  **The Challenge**: "One big challenge was privacy. Users are hesitant to upload photos that might show their room or background. I implemented **client-side background removal** using WASM. This strips the background *in the browser* before the image is ever uploaded, ensuring only the face is processed. I also strip all EXIF metadata."
+
+5.  **The Outcome**: "The result is a fast, private, and helpful tool. It not only detects acne but explains *why* it might be happening and recommends a full routine (cleanser, treatment, moisturizer) that costs less than the user's set limit."

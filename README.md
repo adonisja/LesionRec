@@ -37,7 +37,7 @@ The application is built using a modern decoupled architecture:
 - **Framework**: FastAPI (Python)
 - **AI Services**:
   - **Google Gemini 2.0 Flash**: Primary engine for dermatological analysis (condition detection, severity assessment).
-  - **Google Vision API**: Used for privacy scrubbing (face detection/blurring) before analysis.
+  - **Google Vision API**: Used for object localization (finding blemishes).
 - **Data Processing**: Pandas for product dataset manipulation.
 - **Storage**:
   - **S3 (AWS)**: Secure storage for uploaded images (presigned URLs).
@@ -47,7 +47,9 @@ The application is built using a modern decoupled architecture:
 
 ## ✨ Key Features
 
-1.  **Privacy-First Analysis**: All images are automatically scrubbed (faces blurred) to remove personally identifiable information before being stored or analyzed.
+1.  **Privacy-First Analysis**: 
+    - **Client-Side Background Removal**: Uses WebAssembly (WASM) to remove the background from images *before* upload. This ensures no personal room details or bystanders are ever sent to the server.
+    - **Metadata Scrubbing**: Automatically strips EXIF data (GPS, device info) to protect user privacy.
 2.  **Multi-Modal Input**: Supports both file uploads and live camera capture.
 3.  **AI-Driven Insights**: Detects conditions like Acne, Rosacea, Eczema, etc., and determines severity (Mild, Moderate, Severe).
 4.  **Smart Budgeting & Bundling**:
@@ -75,7 +77,7 @@ The application is built using a modern decoupled architecture:
 - **`main.py`**: The entry point for the FastAPI server. Defines endpoints `/upload`, `/recommend`, and `/api/chat`.
 - **`services/`**:
   - `analysis.py`: Handles interaction with Google Gemini API.
-  - `privacy.py`: Uses Google Vision API to detect and blur faces.
+  - `privacy.py`: Utilities for metadata scrubbing.
   - `product_recommender.py`: The core logic engine. Contains the "Knapsack-style" algorithm for bundling and filtering logic.
   - `chatbot.py`: Manages the conversational AI logic.
   - `product_data_cleaner.py`: Utilities for cleaning and loading CSV data.
@@ -96,8 +98,8 @@ The application is built using a modern decoupled architecture:
 
 1.  **User Action**: User uploads an image or captures a photo via `ImageUpload.tsx`.
 2.  **Frontend**: Sends `POST /upload` request with the image file to the Backend.
-3.  **Backend (Privacy)**: `privacy.py` detects faces and blurs them.
-4.  **Backend (Storage)**: Uploads the scrubbed image to AWS S3.
+3.  **Backend (Privacy)**: `privacy.py` strips any remaining metadata.
+4.  **Backend (Storage)**: Uploads the processed image to AWS S3.
 5.  **Backend (AI Analysis)**: `analysis.py` sends the scrubbed image to Gemini 2.0 Flash.
     - *Prompt*: "Analyze this skin image for conditions..."
     - *Response*: JSON containing `condition` (e.g., "acne"), `severity`, and `characterization`.
@@ -109,6 +111,79 @@ The application is built using a modern decoupled architecture:
 8.  **Frontend**: `App.tsx` saves data to `localStorage` and switches to `RecommendedProducts.tsx` view.
 9.  **User Interaction**: User enters a new budget (e.g., ).
 10. **Update**: Frontend calls `POST /recommend` with the *existing* analysis text and *new* budget. Backend recalculates and returns the new bundle.
+
+---
+
+## 🧩 Planned Feature: Interactive Weekly Routines & Community Reviews
+
+### Overview
+This feature will allow users to turn their recommended product routines into shareable, customizable weekly templates. Users can:
+- Create a weekly routine based on their AI-recommended bundle.
+- Add a personal description/breakdown for each routine.
+- Upload progress photos (e.g., 1 week, 1 month after starting routine).
+- Share routines for others to review, rate, and comment.
+- Copy routines from other users and substitute products as needed.
+
+### 1. Backend Architecture Changes
+**Current State**: Routines are generated on-the-fly and stored in client-side `localStorage`.
+**Required Change**: Introduce a persistent database (PostgreSQL recommended) to store User Generated Content (UGC).
+
+#### Database Schema (Draft)
+*   **`Routines` Table**:
+    *   `id`: UUID (Primary Key)
+    *   `user_id`: String (Owner)
+    *   `title`: String (e.g., "My Acne Fighting Journey")
+    *   `description`: Text (User's breakdown/explanation)
+    *   `products`: JSONB (List of products with `id`, `name`, `category`, `image_url`)
+    *   `schedule`: JSONB (e.g., `{"Monday": ["cleanser", "treatment"], ...}`)
+    *   `condition_tags`: Array (e.g., ["Acne", "Oily Skin"])
+    *   `is_public`: Boolean
+    *   `created_at`: Timestamp
+
+*   **`RoutineReviews` Table**:
+    *   `id`: UUID
+    *   `routine_id`: UUID (Foreign Key)
+    *   `reviewer_id`: String
+    *   `rating`: Integer (1-5)
+    *   `comment`: Text
+    *   `created_at`: Timestamp
+
+*   **`ProgressPhotos` Table**:
+    *   `id`: UUID
+    *   `routine_id`: UUID
+    *   `s3_key`: String (Path to image in S3)
+    *   `stage`: String (e.g., "Week 1", "Month 1")
+    *   `caption`: Text
+
+### 2. API Endpoints (New)
+*   **Routine Management**:
+    *   `POST /routines`: Save a current recommendation as a new Routine.
+    *   `GET /routines`: Search/List public routines (filter by condition, rating).
+    *   `GET /routines/{id}`: Get full details of a specific routine.
+    *   `PUT /routines/{id}`: Update description, schedule, or products.
+    *   `POST /routines/{id}/fork`: Copy another user's routine to your library (allows substitution).
+
+*   **Community Interaction**:
+    *   `POST /routines/{id}/reviews`: Submit a rating and comment.
+    *   `POST /routines/{id}/photos`: Upload a progress transition photo.
+
+### 3. Frontend Implementation Plan
+*   **"Save as Routine" Action**:
+    *   Add button to `RecommendedProducts.tsx` and `Dashboard.tsx`.
+    *   Opens a "Create Routine" wizard to add a Title and Description.
+
+*   **Routine Editor**:
+    *   Interface to drag-and-drop products into a weekly schedule.
+    *   "Substitute Product" feature: Click a product -> Search Catalog -> Replace.
+
+*   **Community Hub**:
+    *   New main navigation tab: "Community".
+    *   Feed of top-rated routines and success stories (Progress Photos).
+
+*   **Routine Detail View**:
+    *   Shows the "Before/After" photos.
+    *   Displays the product list with "Buy Now" links.
+    *   Comments section for user reviews.
 
 ---
 
