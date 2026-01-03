@@ -24,16 +24,25 @@ export const ImageUpload = ({ userId, onAnalysisComplete }: ImageUploadProps) =>
     const [isProcessingBgRemoval, setIsProcessingBgRemoval] = useState(false); // Track background removal processing state
     const [processedImageUrl, setProcessedImageUrl] = useState<string | null>(null); // URL of background-removed image
     const [processedImageFile, setProcessedImageFile] = useState<File | null>(null); // File of background-removed image
-    
+    const [bgRemovalError, setBgRemovalError] = useState<string | null>(null); // UX: Show if background removal fails
 
     const processAndSetFile = async (file: File) => {
         setIsProcessingBgRemoval(true);
+        setBgRemovalError(null);
         setCaptureMode('preview'); // Switch to preview immediately
         
         try {
             console.log("Starting background removal...");
+            
+            // Configure to use CDN for assets to avoid 404s on Vercel
+            // This fetches the WASM and ONNX files from img.ly's static CDN instead of local public folder
+            const config = {
+                publicPath: "https://static.img.ly/background-removal-data/1.7.0/",
+                debug: true
+            };
+
             // 1. Remove Background
-            const blob = await removeBackground(file);
+            const blob = await removeBackground(file, config);
             
             // 2. Create a new File object (strips EXIF data automatically)
             const processedFile = new File([blob], file.name, { type: 'image/png' });
@@ -52,6 +61,8 @@ export const ImageUpload = ({ userId, onAnalysisComplete }: ImageUploadProps) =>
             
         } catch (error) {
             console.error('Background removal failed:', error);
+            setBgRemovalError("Background removal failed. Using original image.");
+            
             // Fallback: Use original file if removal fails
             setSelectedFile(file);
             setCapturedImage(file);
@@ -390,11 +401,13 @@ export const ImageUpload = ({ userId, onAnalysisComplete }: ImageUploadProps) =>
     return (
         <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded-xl shadow-md space-y-4">
             {/* Error Message */}
-            { cameraError && (
-                <div className="w-full p-3 mb-4 bg-red-100 border border-red-400 text-red-700 rounded-md">
-                    <p className="text-sm">{cameraError}</p>
+            { (cameraError || bgRemovalError) && (
+                <div className={`w-full p-3 mb-4 border rounded-md ${
+                    cameraError ? 'bg-red-100 border-red-400 text-red-700' : 'bg-yellow-100 border-yellow-400 text-yellow-700'
+                }`}>
+                    <p className="text-sm">{cameraError || bgRemovalError}</p>
                     <button
-                        onClick={() => setCameraError(null)}
+                        onClick={() => { setCameraError(null); setBgRemovalError(null); }}
                         className="mt-2 text-xs underline hover:no-underline">Dismiss
                     </button>
                 </div>
