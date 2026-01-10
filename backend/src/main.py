@@ -22,7 +22,7 @@ import time                     # For performance tracking
 
 # Third-Party Libraries
 from dotenv import load_dotenv      # To load environment variables from a .env file
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form  # FastAPI for API (Web Framework)
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Request  # FastAPI for API (Web Framework)
 from fastapi.concurrency import run_in_threadpool # For non-blocking sync calls
 from fastapi.middleware.cors import CORSMiddleware      # For security rules for browser requests
 from pydantic import BaseModel      # For request body validation
