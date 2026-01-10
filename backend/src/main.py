@@ -74,6 +74,7 @@ origins = [
     "http://localhost:5173",  # Local Vite
     "http://localhost:3000",  # Local React
     "https://lumina-mu-lake.vercel.app", # Production Frontend
+    "https://lumina-mu-lake.vercel.app/", # Production Frontend (alternate)
     "https://lumina-rosy.vercel.app", # Production Frontend (old)
     "https://lumina-murex.vercel.app", # Production Frontend (alternate)
 ]
