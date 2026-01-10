@@ -73,8 +73,8 @@ except Exception as e:
 origins = [
     "http://localhost:5173",  # Local Vite
     "http://localhost:3000",  # Local React
-    "https://lumina-git-main-akkeems-projects.vercel.app/", # Production Frontend
-    "https://lumina-git-main-akkeems-projects.vercel.app"
+    "lumina-my80rh1d1-akkeems-projects.vercel.app", # Production Frontend
+    "lumina-my80rh1d1-akkeems-projects.vercel.app/"
 ]
 
 app.add_middleware(
