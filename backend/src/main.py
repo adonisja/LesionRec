@@ -75,6 +75,8 @@ origins = [
     "http://localhost:3000",  # Local React
     "https://lumina-rosy.vercel.app", # Production Frontend
     "https://lumina-rosy.vercel.app/", # Production Frontend (trailing slash)
+    "https://lumina-murex.vercel.app", # Production Frontend (new deployment)
+    "https://lumina-murex.vercel.app/", # Production Frontend (new deployment with trailing slash)
 ]
 
 app.add_middleware(
