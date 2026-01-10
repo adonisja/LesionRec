@@ -73,8 +73,9 @@ except Exception as e:
 origins = [
     "http://localhost:5173",  # Local Vite
     "http://localhost:3000",  # Local React
-    "lumina-mu-lake.vercel.app", # Production Frontend
-    "lumina-mu-lake.vercel.app/"
+    "https://lumina-mu-lake.vercel.app", # Production Frontend
+    "https://lumina-rosy.vercel.app", # Production Frontend (old)
+    "https://lumina-murex.vercel.app", # Production Frontend (alternate)
 ]
 
 app.add_middleware(
@@ -84,6 +85,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ---- CORS DEBUG LOGGING ----
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    origin = request.headers.get("origin")
+    logger.info(f"📨 Incoming request from origin: {origin}")
+    logger.info(f"🎯 Request path: {request.url.path}")
+    logger.info(f"🔧 Request method: {request.method}")
+    
+    response = await call_next(request)
+    
+    # Log CORS headers in response
+    cors_header = response.headers.get("access-control-allow-origin")
+    logger.info(f"🔐 CORS header set to: {cors_header}")
+    
+    return response
 
 # ---- INFRASTRUCTURE (S3) ----
 # Initialize a connection to AWS *once* when the server starts
